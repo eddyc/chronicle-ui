@@ -1,24 +1,42 @@
 /**
  * Chronicle UI Color Palette
- * 70s Electronics Design System - warm amber accents with rich neutrals
+ *
+ * @deprecated Use tokens from useChronicleTheme() hook instead.
+ * This file provides backward compatibility with the old color system.
+ *
+ * Migration guide:
+ * - colors.amber → semantic.accent.primary
+ * - colors.cream → semantic.text.primary
+ * - colors.warmGray → semantic.text.secondary
+ * - colors.panelLight → semantic.border.default
+ * - colors.panelDark → semantic.background.surface
+ * - colors.panelBlack → semantic.background.page
  */
 
-export const colors = {
-  // Primary accent - warm amber (like vintage LED displays)
-  amber: '#E8A93A',
+import { createSemanticTokens } from './tokens'
 
-  // Neutrals - clean hierarchy
-  cream: '#F0E6D8',
-  warmGray: '#9A918A',
+// Create dark mode tokens for backward compatibility
+const darkTokens = createSemanticTokens('dark')
+
+/**
+ * @deprecated Use tokens from useChronicleTheme() hook instead
+ */
+export const colors = {
+  // Primary accent - now uses rainbow yellow
+  amber: darkTokens.accent.primary,
+
+  // Neutrals
+  cream: darkTokens.text.primary,
+  warmGray: darkTokens.text.secondary,
 
   // Panel colors
-  panelLight: '#3A3530',
-  panelDark: '#252220',
-  panelBlack: '#1A1816',
+  panelLight: darkTokens.border.default,
+  panelDark: darkTokens.background.surface,
+  panelBlack: darkTokens.background.page,
 
-  // Hardware accents
-  chrome: '#C8C4C0',
-  bakelite: '#2A2624',
+  // Hardware accents (mapped to new system)
+  chrome: darkTokens.text.secondary,
+  bakelite: darkTokens.background.elevated,
 } as const
 
 export type Colors = typeof colors

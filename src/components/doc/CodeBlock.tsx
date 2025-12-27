@@ -5,28 +5,15 @@ import Prism from 'prismjs'
 import 'prismjs/components/prism-typescript'
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-bash'
-import { colors } from '../../theme'
+import { useChronicleTheme } from '../../hooks'
 
 interface CodeBlockProps {
   children: string
   language?: string
 }
 
-// Minimal syntax highlighting - amber accents only
-const syntaxColors = {
-  keyword: colors.amber,
-  string: colors.cream,
-  function: colors.amber,
-  number: colors.amber,
-  operator: colors.warmGray,
-  comment: colors.warmGray,
-  punctuation: `${colors.cream}60`,
-  property: colors.cream,
-  className: colors.amber,
-  boolean: colors.amber,
-}
-
 export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps) {
+  const { semantic, components } = useChronicleTheme()
   const [copied, setCopied] = useState(false)
   const codeRef = useRef<HTMLElement>(null)
   const code = children.trim()
@@ -43,19 +30,21 @@ export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps)
     }
   }, [code, language])
 
+  const { syntax } = components.codeBlock
+
   return (
     <Paper
       elevation={0}
       sx={{
         position: 'relative',
         mb: 3,
-        backgroundColor: colors.panelBlack,
-        border: `1px solid ${colors.panelLight}`,
+        backgroundColor: components.codeBlock.background,
+        border: `1px solid ${components.codeBlock.border}`,
         borderRadius: 1,
         overflow: 'hidden',
       }}
     >
-      {/* Minimal header */}
+      {/* Header */}
       <Box
         sx={{
           display: 'flex',
@@ -63,8 +52,8 @@ export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps)
           alignItems: 'center',
           px: 2,
           py: 0.5,
-          borderBottom: `1px solid ${colors.panelLight}`,
-          backgroundColor: colors.panelDark,
+          borderBottom: `1px solid ${components.codeBlock.border}`,
+          backgroundColor: components.codeBlock.header,
         }}
       >
         <Box
@@ -72,7 +61,7 @@ export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps)
           sx={{
             fontFamily: '"JetBrains Mono", monospace',
             fontSize: '0.65rem',
-            color: colors.warmGray,
+            color: semantic.text.muted,
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
           }}
@@ -84,8 +73,8 @@ export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps)
             size="small"
             onClick={handleCopy}
             sx={{
-              color: copied ? colors.amber : colors.warmGray,
-              '&:hover': { color: colors.cream },
+              color: copied ? semantic.accent.primary : semantic.text.muted,
+              '&:hover': { color: semantic.text.primary },
             }}
           >
             {copied ? <CheckIcon fontSize="small" /> : <CopyIcon fontSize="small" />}
@@ -93,7 +82,7 @@ export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps)
         </Tooltip>
       </Box>
 
-      {/* Code content */}
+      {/* Code content with rainbow syntax */}
       <Box
         component="pre"
         sx={{
@@ -103,23 +92,23 @@ export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps)
           fontFamily: '"JetBrains Mono", monospace',
           fontSize: '0.85rem',
           lineHeight: 1.7,
-          // Minimal syntax theme
-          '& .token.keyword': { color: syntaxColors.keyword },
-          '& .token.string': { color: syntaxColors.string },
-          '& .token.template-string': { color: syntaxColors.string },
-          '& .token.function': { color: syntaxColors.function },
-          '& .token.number': { color: syntaxColors.number },
-          '& .token.boolean': { color: syntaxColors.boolean },
-          '& .token.operator': { color: syntaxColors.operator },
-          '& .token.comment': { color: syntaxColors.comment, fontStyle: 'italic' },
-          '& .token.punctuation': { color: syntaxColors.punctuation },
-          '& .token.property': { color: syntaxColors.property },
-          '& .token.class-name': { color: syntaxColors.className },
-          '& .token.builtin': { color: syntaxColors.function },
-          '& .token.constant': { color: syntaxColors.number },
-          '& .token.parameter': { color: colors.cream },
+          // Rainbow syntax theme
+          '& .token.keyword': { color: syntax.keyword },
+          '& .token.string': { color: syntax.string },
+          '& .token.template-string': { color: syntax.string },
+          '& .token.function': { color: syntax.function },
+          '& .token.number': { color: syntax.number },
+          '& .token.boolean': { color: syntax.boolean },
+          '& .token.operator': { color: syntax.operator },
+          '& .token.comment': { color: syntax.comment, fontStyle: 'italic' },
+          '& .token.punctuation': { color: syntax.punctuation },
+          '& .token.property': { color: syntax.property },
+          '& .token.class-name': { color: syntax.className },
+          '& .token.builtin': { color: syntax.function },
+          '& .token.constant': { color: syntax.number },
+          '& .token.parameter': { color: semantic.text.primary },
           // Default text
-          color: colors.cream,
+          color: semantic.text.primary,
         }}
       >
         <code ref={codeRef} className={`language-${language}`}>

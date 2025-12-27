@@ -1,27 +1,68 @@
 import { createTheme as muiCreateTheme, type ThemeOptions } from '@mui/material/styles'
-import { colors } from './colors'
+import {
+  primitives,
+  createSemanticTokens,
+  createComponentTokens,
+  type ThemeMode,
+  type ChronicleThemeTokens,
+} from './tokens'
+
+const { rainbow } = primitives
 
 /**
- * Create a Chronicle-themed MUI theme
- * Optionally override any theme options
+ * Create a Chronicle-themed MUI theme with light/dark mode support
+ *
+ * @param mode - 'light' or 'dark' theme mode
+ * @param options - Optional MUI theme overrides
  */
-export function createChronicleTheme(options?: ThemeOptions) {
+export function createChronicleTheme(
+  mode: ThemeMode = 'dark',
+  options?: ThemeOptions
+) {
+  const semantic = createSemanticTokens(mode)
+  const components = createComponentTokens(semantic, mode)
+
+  const chronicle: ChronicleThemeTokens = {
+    mode,
+    semantic,
+    components,
+  }
+
   return muiCreateTheme({
     palette: {
-      mode: 'dark',
+      mode,
       primary: {
-        main: colors.amber,
-        light: '#F0BC5A',
-        dark: '#C89020',
+        main: semantic.accent.primary,
+        light: rainbow.lime,
+        dark: rainbow.orange,
+      },
+      secondary: {
+        main: semantic.accent.secondary,
+        light: rainbow.pink,
+        dark: rainbow.purple,
+      },
+      error: {
+        main: semantic.semantic.error,
+      },
+      warning: {
+        main: semantic.semantic.warning,
+      },
+      success: {
+        main: semantic.semantic.success,
+      },
+      info: {
+        main: semantic.semantic.info,
       },
       background: {
-        default: colors.panelBlack,
-        paper: colors.panelDark,
+        default: semantic.background.page,
+        paper: semantic.background.surface,
       },
       text: {
-        primary: colors.cream,
-        secondary: colors.warmGray,
+        primary: semantic.text.primary,
+        secondary: semantic.text.secondary,
+        disabled: semantic.text.muted,
       },
+      divider: semantic.border.subtle,
     },
     typography: {
       fontFamily: '"Nunito", sans-serif',
@@ -61,15 +102,15 @@ export function createChronicleTheme(options?: ThemeOptions) {
       MuiCssBaseline: {
         styleOverrides: {
           body: {
-            backgroundColor: colors.panelBlack,
+            backgroundColor: semantic.background.page,
           },
         },
       },
       MuiDrawer: {
         styleOverrides: {
           paper: {
-            backgroundColor: colors.panelDark,
-            borderRight: `1px solid ${colors.panelLight}`,
+            backgroundColor: semantic.background.surface,
+            borderRight: `1px solid ${semantic.border.subtle}`,
           },
         },
       },
@@ -80,12 +121,12 @@ export function createChronicleTheme(options?: ThemeOptions) {
             margin: '1px 8px',
             transition: 'background-color 0.15s ease',
             '&:hover': {
-              backgroundColor: colors.panelLight,
+              backgroundColor: semantic.background.elevated,
             },
             '&.Mui-selected': {
-              backgroundColor: colors.panelLight,
+              backgroundColor: components.sidebar.itemSelected,
               '&:hover': {
-                backgroundColor: colors.panelLight,
+                backgroundColor: components.sidebar.itemSelected,
               },
             },
           },
@@ -98,10 +139,23 @@ export function createChronicleTheme(options?: ThemeOptions) {
           },
         },
       },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            textTransform: 'none',
+            fontWeight: 600,
+          },
+        },
+      },
     },
+    // Attach Chronicle tokens to theme for access via useTheme()
+    chronicle,
     ...options,
   })
 }
 
-/** Default Chronicle theme instance */
-export const theme = createChronicleTheme()
+/** Default dark theme instance */
+export const theme = createChronicleTheme('dark')
+
+/** Light theme instance */
+export const lightTheme = createChronicleTheme('light')

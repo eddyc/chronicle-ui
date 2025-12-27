@@ -1,6 +1,6 @@
 import { Box, Typography } from '@mui/material'
 import { useRef, useCallback, useState, useEffect } from 'react'
-import { colors } from '../../theme'
+import { useChronicleTheme } from '../../hooks'
 
 interface KnobProps {
   label: string
@@ -13,6 +13,10 @@ interface KnobProps {
   size?: number
 }
 
+/**
+ * Flat vector-style rotary knob control
+ * Peter Max pop art aesthetic - clean lines, bold colors
+ */
 export function Knob({
   label,
   value,
@@ -21,8 +25,9 @@ export function Knob({
   max,
   step = 1,
   unit = '',
-  size = 56
+  size = 56,
 }: KnobProps) {
+  const { semantic, components } = useChronicleTheme()
   const knobRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const dragState = useRef({ startY: 0, startValue: 0 })
@@ -33,11 +38,14 @@ export function Knob({
   const clamp = (val: number, minVal: number, maxVal: number) =>
     Math.min(Math.max(val, minVal), maxVal)
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-    dragState.current = { startY: e.clientY, startValue: value }
-  }, [value])
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      setIsDragging(true)
+      dragState.current = { startY: e.clientY, startValue: value }
+    },
+    [value]
+  )
 
   useEffect(() => {
     if (!isDragging) return
@@ -74,19 +82,19 @@ export function Knob({
         userSelect: 'none',
       }}
     >
-      {/* Label - small, subtle */}
+      {/* Label */}
       <Typography
         sx={{
           fontSize: '0.65rem',
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
-          color: colors.warmGray,
+          color: semantic.text.secondary,
         }}
       >
         {label}
       </Typography>
 
-      {/* Knob - authentic bakelite style */}
+      {/* Knob - flat vector style */}
       <Box
         ref={knobRef}
         onMouseDown={handleMouseDown}
@@ -96,62 +104,36 @@ export function Knob({
           borderRadius: '50%',
           cursor: isDragging ? 'grabbing' : 'grab',
           position: 'relative',
-          // Bakelite knob gradient
-          background: `
-            radial-gradient(circle at 40% 35%,
-              #4A4540 0%,
-              #353230 30%,
-              #252320 60%,
-              #1A1918 100%
-            )
-          `,
-          boxShadow: `
-            inset 0 1px 2px rgba(255,255,255,0.08),
-            inset 0 -2px 3px rgba(0,0,0,0.4),
-            0 3px 8px rgba(0,0,0,0.4)
-          `,
-          border: '1px solid #1A1918',
-          // Knurled edge - subtle ridges
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 1,
-            left: 1,
-            right: 1,
-            bottom: 1,
-            borderRadius: '50%',
-            background: `
-              repeating-conic-gradient(
-                from 0deg,
-                transparent 0deg 4deg,
-                rgba(0,0,0,0.15) 4deg 8deg
-              )
-            `,
+          // Flat background - no gradients
+          backgroundColor: components.knob.background,
+          border: `2px solid ${components.knob.track}`,
+          transition: 'border-color 0.15s ease',
+          '&:hover': {
+            borderColor: semantic.border.strong,
           },
         }}
       >
-        {/* Chrome indicator line */}
+        {/* Indicator line - bold pop art style */}
         <Box
           sx={{
             position: 'absolute',
-            top: '12%',
+            top: '15%',
             left: '50%',
-            width: 2,
-            height: '28%',
-            backgroundColor: colors.chrome,
-            borderRadius: 1,
-            transformOrigin: 'center 140%',
+            width: 3,
+            height: '30%',
+            backgroundColor: components.knob.indicator,
+            borderRadius: 1.5,
+            transformOrigin: 'center 117%',
             transform: `translateX(-50%) rotate(${rotation}deg)`,
-            boxShadow: '0 0 2px rgba(0,0,0,0.5)',
           }}
         />
       </Box>
 
-      {/* LED-style value display */}
+      {/* Value display */}
       <Box
         sx={{
-          backgroundColor: '#0A0908',
-          border: '1px solid #2A2826',
+          backgroundColor: components.knob.value.background,
+          border: `1px solid ${semantic.border.subtle}`,
           borderRadius: 1,
           px: 1,
           py: 0.25,
@@ -163,13 +145,14 @@ export function Knob({
             fontFamily: '"JetBrains Mono", monospace',
             fontSize: '0.75rem',
             fontWeight: 700,
-            color: colors.amber,
+            color: components.knob.value.text,
             textAlign: 'center',
-            textShadow: `0 0 6px ${colors.amber}60`,
+            textShadow: `0 0 8px ${components.knob.value.glow}`,
             letterSpacing: '0.05em',
           }}
         >
-          {displayValue}{unit}
+          {displayValue}
+          {unit}
         </Typography>
       </Box>
     </Box>
