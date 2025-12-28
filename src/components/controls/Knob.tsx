@@ -113,47 +113,34 @@ export function Knob({
           },
         }}
       >
-        {/* Indicator line - bold pop art style */}
+        {/* Indicator line - touching the edge */}
         <Box
           sx={{
             position: 'absolute',
-            top: '15%',
+            top: 0,
             left: '50%',
-            width: 3,
-            height: '30%',
+            width: 2,
+            height: '20%',
             backgroundColor: components.knob.indicator,
-            borderRadius: 1.5,
-            transformOrigin: 'center 117%',
+            borderRadius: 1,
+            transformOrigin: 'center 250%',
             transform: `translateX(-50%) rotate(${rotation}deg)`,
           }}
         />
       </Box>
 
       {/* Value display */}
-      <Box
+      <Typography
         sx={{
-          backgroundColor: components.knob.value.background,
-          border: `1px solid ${semantic.border.subtle}`,
-          borderRadius: 1,
-          px: 1,
-          py: 0.25,
-          minWidth: 48,
+          fontSize: '0.75rem',
+          fontWeight: 500,
+          color: semantic.text.primary,
+          textAlign: 'center',
         }}
       >
-        <Typography
-          sx={{
-            fontFamily: '"JetBrains Mono", monospace',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            color: components.knob.value.text,
-            textAlign: 'center',
-            letterSpacing: '0.05em',
-          }}
-        >
-          {displayValue}
-          {unit}
-        </Typography>
-      </Box>
+        {displayValue}
+        {unit}
+      </Typography>
     </Box>
   )
 }

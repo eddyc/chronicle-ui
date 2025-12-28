@@ -20,10 +20,6 @@ export function createComponentTokens(semantic: SemanticTokens, mode: ThemeMode)
       background: semantic.background.elevated,
       indicator: semantic.accent.primary,
       track: semantic.border.subtle,
-      value: {
-        background: semantic.background.sunken,
-        text: semantic.accent.primary,
-      },
     },
 
     codeBlock: {
