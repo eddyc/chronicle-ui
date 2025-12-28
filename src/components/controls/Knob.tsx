@@ -15,7 +15,7 @@ interface KnobProps {
 
 /**
  * Flat vector-style rotary knob control
- * Peter Max pop art aesthetic - clean lines, bold colors
+ * Clean modern aesthetic - subtle, professional
  */
 export function Knob({
   label,
@@ -147,7 +147,6 @@ export function Knob({
             fontWeight: 700,
             color: components.knob.value.text,
             textAlign: 'center',
-            textShadow: `0 0 8px ${components.knob.value.glow}`,
             letterSpacing: '0.05em',
           }}
         >

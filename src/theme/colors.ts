@@ -22,7 +22,7 @@ const darkTokens = createSemanticTokens('dark')
  * @deprecated Use tokens from useChronicleTheme() hook instead
  */
 export const colors = {
-  // Primary accent - now uses rainbow yellow
+  // Primary accent
   amber: darkTokens.accent.primary,
 
   // Neutrals

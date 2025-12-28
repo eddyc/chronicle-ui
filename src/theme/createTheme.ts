@@ -7,13 +7,11 @@ import {
   type ChronicleThemeTokens,
 } from './tokens'
 
-const { rainbow } = primitives
+const { accent } = primitives
 
 /**
  * Create a Chronicle-themed MUI theme with light/dark mode support
- *
- * @param mode - 'light' or 'dark' theme mode
- * @param options - Optional MUI theme overrides
+ * Minimal design - monochrome + warm accent
  */
 export function createChronicleTheme(
   mode: ThemeMode = 'dark',
@@ -32,14 +30,14 @@ export function createChronicleTheme(
     palette: {
       mode,
       primary: {
-        main: semantic.accent.primary,
-        light: rainbow.lime,
-        dark: rainbow.orange,
+        main: accent.primary,
+        light: accent.light,
+        dark: accent.dark,
       },
       secondary: {
-        main: semantic.accent.secondary,
-        light: rainbow.pink,
-        dark: rainbow.purple,
+        main: primitives.neutral.gray500,
+        light: primitives.neutral.gray400,
+        dark: primitives.neutral.gray600,
       },
       error: {
         main: semantic.semantic.error,
@@ -119,7 +117,7 @@ export function createChronicleTheme(
           root: {
             borderRadius: 4,
             margin: '1px 8px',
-            transition: 'background-color 0.15s ease',
+            transition: 'background-color 0.15s ease, opacity 0.15s ease',
             '&:hover': {
               backgroundColor: semantic.background.elevated,
             },

@@ -3,6 +3,8 @@ import { ContentCopy as CopyIcon, Check as CheckIcon } from '@mui/icons-material
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Prism from 'prismjs'
 import 'prismjs/components/prism-typescript'
+import 'prismjs/components/prism-jsx'
+import 'prismjs/components/prism-tsx'
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-bash'
 import { useChronicleTheme } from '../../hooks'
@@ -12,6 +14,10 @@ interface CodeBlockProps {
   language?: string
 }
 
+/**
+ * Minimal syntax highlighted code block
+ * 4-5 color palette: function (amber), string (light amber), keyword (gray), comment (muted gray)
+ */
 export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps) {
   const { semantic, components } = useChronicleTheme()
   const [copied, setCopied] = useState(false)
@@ -82,7 +88,7 @@ export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps)
         </Tooltip>
       </Box>
 
-      {/* Code content with rainbow syntax */}
+      {/* Code content - minimal 4-5 color syntax */}
       <Box
         component="pre"
         sx={{
@@ -92,20 +98,27 @@ export function CodeBlock({ children, language = 'typescript' }: CodeBlockProps)
           fontFamily: '"JetBrains Mono", monospace',
           fontSize: '0.85rem',
           lineHeight: 1.7,
-          // Rainbow syntax theme
-          '& .token.keyword': { color: syntax.keyword },
+          // 1. Functions - accent color (amber)
+          '& .token.function': { color: syntax.function },
+          '& .token.builtin': { color: syntax.function },
+          '& .token.class-name': { color: syntax.function },
+          '& .token.property': { color: syntax.function },
+          '& .token.tag': { color: syntax.function },
+          // 2. Strings/values - lighter accent
           '& .token.string': { color: syntax.string },
           '& .token.template-string': { color: syntax.string },
-          '& .token.function': { color: syntax.function },
-          '& .token.number': { color: syntax.number },
-          '& .token.boolean': { color: syntax.boolean },
-          '& .token.operator': { color: syntax.operator },
+          '& .token.number': { color: syntax.string },
+          '& .token.boolean': { color: syntax.string },
+          '& .token.constant': { color: syntax.string },
+          '& .token.attr-value': { color: syntax.string },
+          // 3. Keywords - muted gray
+          '& .token.keyword': { color: syntax.keyword },
+          '& .token.attr-name': { color: syntax.keyword },
+          // 4. Comments - very muted
           '& .token.comment': { color: syntax.comment, fontStyle: 'italic' },
+          // 5. Everything else - inherit/secondary
+          '& .token.operator': { color: syntax.operator },
           '& .token.punctuation': { color: syntax.punctuation },
-          '& .token.property': { color: syntax.property },
-          '& .token.class-name': { color: syntax.className },
-          '& .token.builtin': { color: syntax.function },
-          '& .token.constant': { color: syntax.number },
           '& .token.parameter': { color: semantic.text.primary },
           // Default text
           color: semantic.text.primary,

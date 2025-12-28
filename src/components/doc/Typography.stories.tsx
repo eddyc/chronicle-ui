@@ -78,7 +78,7 @@ export const CompleteDocument: StoryObj = {
 
       <H3>Basic Usage</H3>
       <P>
-        Import the <Code>graph</Code> function from <Code>@chronicle/dsl</Code> and
+        Import the <Code>graph</Code> function from <Code>@eddyc/chronicle-dsl</Code> and
         define your audio graph:
       </P>
 

@@ -20,9 +20,12 @@ const icons = {
   tip: TipIcon,
 }
 
+/**
+ * Minimal callout - single style with amber accent
+ * No color variants - just a subtle box with accent icon
+ */
 export function Callout({ type = 'info', children }: CalloutProps) {
   const { semantic } = useChronicleTheme()
-  const callout = semantic.callout[type]
   const Icon = icons[type]
 
   return (
@@ -33,19 +36,19 @@ export function Callout({ type = 'info', children }: CalloutProps) {
         gap: 2,
         p: 2,
         mb: 3,
-        backgroundColor: callout.bg,
-        border: `1px solid ${callout.border}33`,
+        backgroundColor: semantic.callout.background,
+        border: `1px solid ${semantic.callout.border}`,
         borderRadius: 1,
       }}
     >
-      <Icon sx={{ color: callout.icon, flexShrink: 0, mt: 0.25 }} />
+      <Icon sx={{ color: semantic.callout.accent, flexShrink: 0, mt: 0.25 }} />
       <Box
         sx={{
           color: semantic.text.secondary,
           lineHeight: 1.6,
           '& p': { m: 0 },
           '& code': {
-            backgroundColor: `${semantic.accent.tertiary}15`,
+            backgroundColor: semantic.accent.primaryMuted,
             color: semantic.accent.primary,
             px: 0.75,
             py: 0.25,

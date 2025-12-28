@@ -1,91 +1,83 @@
 /**
  * Chronicle UI Semantic Tokens
- * Theme-dependent mappings from primitives to semantic meanings
+ * Minimal monochrome + warm accent design
  */
 
 import { primitives } from './primitives'
 import type { ThemeMode } from './types'
 
-const { rainbow, neutral } = primitives
+const { accent, neutral, semantic: sem } = primitives
 
 /**
  * Create semantic tokens for a given theme mode
- * Rainbow accents stay the same in both themes - that's the pop art magic!
+ * Pure monochrome with single amber accent
  */
 export function createSemanticTokens(mode: ThemeMode) {
   const isDark = mode === 'dark'
 
   return {
-    // Backgrounds
+    // Backgrounds - pure grays
     background: {
-      page: isDark ? neutral.warmGray900 : neutral.cream,
-      surface: isDark ? neutral.warmGray800 : neutral.white,
-      elevated: isDark ? neutral.warmGray700 : neutral.warmGray50,
-      sunken: isDark ? neutral.black : neutral.warmGray100,
+      page: isDark ? neutral.gray900 : neutral.white,
+      surface: isDark ? neutral.gray800 : neutral.gray50,
+      elevated: isDark ? neutral.gray700 : neutral.gray100,
+      sunken: isDark ? neutral.black : neutral.gray100,
     },
 
-    // Text
+    // Text - high contrast monochrome
     text: {
-      primary: isDark ? neutral.cream : neutral.warmGray900,
-      secondary: isDark ? neutral.warmGray400 : neutral.warmGray500,
-      muted: isDark ? neutral.warmGray500 : neutral.warmGray400,
-      inverse: isDark ? neutral.warmGray900 : neutral.cream,
+      primary: isDark ? neutral.white : neutral.black,
+      secondary: isDark ? neutral.gray400 : neutral.gray500,
+      muted: isDark ? neutral.gray500 : neutral.gray400,
+      inverse: isDark ? neutral.black : neutral.white,
     },
 
-    // Borders
+    // Borders - subtle grays
     border: {
-      subtle: isDark ? neutral.warmGray700 : neutral.warmGray200,
-      default: isDark ? neutral.warmGray600 : neutral.warmGray300,
-      strong: isDark ? neutral.warmGray500 : neutral.warmGray400,
+      subtle: isDark ? neutral.gray700 : neutral.gray200,
+      default: isDark ? neutral.gray600 : neutral.gray300,
+      strong: isDark ? neutral.gray500 : neutral.gray400,
     },
 
-    // Rainbow accents (same in both themes!)
+    // Single accent color for all interactive elements
+    // Light mode uses darker amber for better contrast
     accent: {
-      primary: rainbow.yellow, // Sunny yellow - main accent
-      secondary: rainbow.magenta, // Hot magenta
-      tertiary: rainbow.cyan, // Electric cyan
+      primary: isDark ? accent.primary : accent.dark,
+      primaryHover: isDark ? accent.light : accent.primary,
+      primaryPressed: accent.dark,
+      primaryMuted: isDark ? `${accent.primary}20` : `${accent.dark}15`,
+      // For text on accent backgrounds
+      onAccent: neutral.black,
     },
 
-    // Semantic colors
+    // Minimal semantic colors - only for critical states
     semantic: {
-      success: rainbow.green,
-      warning: rainbow.orange,
-      error: rainbow.red,
-      info: rainbow.cyan,
+      error: sem.error,
+      success: sem.success,
+      warning: accent.primary,  // Use accent for warnings
+      info: neutral.gray500,    // Gray for info
     },
 
-    // Signal rate colors (for visualizations)
+    // Signal visualization - all use accent or gray
     signal: {
-      audio: rainbow.yellow, // a-rate
-      control: rainbow.cyan, // k-rate
-      init: neutral.warmGray400, // i-rate
-      table: rainbow.orange, // function tables
+      audio: isDark ? accent.primary : accent.dark,    // a-rate
+      control: isDark ? accent.light : accent.primary, // k-rate (slightly different)
+      init: neutral.gray500,    // i-rate
+      table: isDark ? accent.primary : accent.dark,    // function tables
     },
 
-    // Status colors
+    // Status - simplified to accent + gray
     status: {
-      working: rainbow.green,
-      wip: rainbow.yellow,
-      planned: neutral.warmGray400,
+      working: sem.success,
+      wip: isDark ? accent.primary : accent.dark,
+      planned: neutral.gray500,
     },
 
-    // Callout types
+    // Callouts - single style (no color variants)
     callout: {
-      info: {
-        bg: isDark ? `${rainbow.cyan}15` : `${rainbow.cyan}10`,
-        border: rainbow.cyan,
-        icon: rainbow.cyan,
-      },
-      warning: {
-        bg: isDark ? `${rainbow.orange}15` : `${rainbow.orange}10`,
-        border: rainbow.orange,
-        icon: rainbow.orange,
-      },
-      tip: {
-        bg: isDark ? `${rainbow.green}15` : `${rainbow.green}10`,
-        border: rainbow.green,
-        icon: rainbow.green,
-      },
+      background: isDark ? neutral.gray800 : neutral.gray100,
+      border: isDark ? neutral.gray600 : neutral.gray300,
+      accent: isDark ? accent.primary : accent.dark,
     },
   } as const
 }

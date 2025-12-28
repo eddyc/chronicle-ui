@@ -23,7 +23,7 @@ type Story = StoryObj<typeof CodeBlock>
 export const TypeScript: Story = {
   args: {
     language: 'typescript',
-    children: `import { graph } from '@chronicle/dsl'
+    children: `import { graph } from '@eddyc/chronicle-dsl'
 
 const result = graph(({ phasor, sin }) => {
   const freq = 440
@@ -51,7 +51,7 @@ export const JSON: Story = {
   args: {
     language: 'json',
     children: `{
-  "name": "@chronicle/dsl",
+  "name": "@eddyc/chronicle-dsl",
   "version": "0.1.0",
   "dependencies": {
     "@chronicle/core": "workspace:*"
@@ -69,8 +69,8 @@ pnpm install
 # Build all packages
 pnpm build
 
-# Run the playground
-cd apps/playground && pnpm start`,
+# Run the app
+cd apps/chronicle-app && pnpm start`,
   },
 }
 

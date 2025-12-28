@@ -1,56 +1,53 @@
 /**
  * Chronicle UI Primitive Tokens
- * Peter Max / Yellow Submarine Pop Art Palette
+ * Minimal Design System - Monochrome + Warm Accent
  *
- * These are raw color values that never change between themes.
- * The rainbow spectrum is the signature of the pop art aesthetic.
+ * Following the 60-30-10 rule:
+ * - 60% Neutral (backgrounds, text)
+ * - 30% Secondary neutral (borders, muted)
+ * - 10% Accent (amber - interactive elements)
  */
 
 export const primitives = {
-  // Rainbow spectrum - Peter Max signature colors
-  rainbow: {
-    red: '#FF3366', // Vibrant coral-red
-    orange: '#FF6B35', // Electric orange
-    yellow: '#FFD23F', // Sunny yellow
-    lime: '#9BDE7E', // Fresh lime
-    green: '#00D68F', // Emerald green
-    teal: '#00CED1', // Cosmic teal
-    cyan: '#00BFFF', // Electric cyan
-    blue: '#4A90D9', // Sky blue
-    indigo: '#6366F1', // Deep indigo
-    purple: '#A855F7', // Vibrant purple
-    magenta: '#EC4899', // Hot magenta
-    pink: '#FF85A2', // Bubblegum pink
+  // Single warm accent color (amber/orange)
+  accent: {
+    primary: '#F59E0B',      // Amber - main interactive color
+    light: '#FBBF24',        // Lighter for hover/strings
+    dark: '#D97706',         // Darker for pressed states
   },
 
-  // Neutrals - warm undertones throughout
+  // Pure monochrome neutrals (no warm/cool tint)
   neutral: {
     white: '#FFFFFF',
-    cream: '#FFF8F0',
-    sand: '#F5E6D3',
-    warmGray50: '#FAF7F5',
-    warmGray100: '#F0EBE6',
-    warmGray200: '#E0D8D0',
-    warmGray300: '#C4B8AB',
-    warmGray400: '#9A918A',
-    warmGray500: '#6B635C',
-    warmGray600: '#4A4540',
-    warmGray700: '#353230',
-    warmGray800: '#252220',
-    warmGray900: '#1A1816',
-    black: '#0A0908',
+    gray50: '#FAFAFA',
+    gray100: '#F5F5F5',
+    gray200: '#E5E5E5',
+    gray300: '#D4D4D4',
+    gray400: '#A3A3A3',
+    gray500: '#737373',
+    gray600: '#525252',
+    gray700: '#404040',
+    gray800: '#262626',
+    gray900: '#171717',
+    black: '#0A0A0A',
   },
 
-  // Transparency variants (for overlays, glows, shadows)
+  // Minimal semantic colors (muted versions)
+  semantic: {
+    error: '#DC2626',        // Red - errors only
+    success: '#16A34A',      // Green - success only
+  },
+
+  // Transparency variants
   alpha: {
-    black10: 'rgba(10, 9, 8, 0.1)',
-    black20: 'rgba(10, 9, 8, 0.2)',
-    black40: 'rgba(10, 9, 8, 0.4)',
-    black60: 'rgba(10, 9, 8, 0.6)',
+    black5: 'rgba(10, 10, 10, 0.05)',
+    black10: 'rgba(10, 10, 10, 0.1)',
+    black20: 'rgba(10, 10, 10, 0.2)',
+    black40: 'rgba(10, 10, 10, 0.4)',
+    white5: 'rgba(255, 255, 255, 0.05)',
     white10: 'rgba(255, 255, 255, 0.1)',
     white20: 'rgba(255, 255, 255, 0.2)',
     white40: 'rgba(255, 255, 255, 0.4)',
-    white60: 'rgba(255, 255, 255, 0.6)',
   },
 } as const
 

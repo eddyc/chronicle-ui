@@ -1,18 +1,20 @@
 /**
  * Chronicle UI Component Tokens
- * Specific values for individual components
+ * Minimal design - amber accent + monochrome
  */
 
 import { primitives } from './primitives'
 import type { SemanticTokens } from './semantic'
 import type { ThemeMode } from './types'
 
-const { rainbow } = primitives
+const { accent, neutral } = primitives
 
 /**
  * Create component-specific tokens from semantic tokens
  */
-export function createComponentTokens(semantic: SemanticTokens, _mode: ThemeMode) {
+export function createComponentTokens(semantic: SemanticTokens, mode: ThemeMode) {
+  const isDark = mode === 'dark'
+
   return {
     knob: {
       background: semantic.background.elevated,
@@ -21,7 +23,6 @@ export function createComponentTokens(semantic: SemanticTokens, _mode: ThemeMode
       value: {
         background: semantic.background.sunken,
         text: semantic.accent.primary,
-        glow: `${semantic.accent.primary}60`,
       },
     },
 
@@ -29,17 +30,18 @@ export function createComponentTokens(semantic: SemanticTokens, _mode: ThemeMode
       background: semantic.background.sunken,
       border: semantic.border.subtle,
       header: semantic.background.surface,
-      // Rainbow syntax highlighting
+      // Minimal 4-5 color syntax highlighting
       syntax: {
-        keyword: rainbow.magenta,
-        string: rainbow.green,
-        function: rainbow.yellow,
-        number: rainbow.orange,
-        comment: semantic.text.muted,
+        // 1. Functions/DSL - accent color
+        function: semantic.accent.primary,
+        // 2. Strings/values - lighter accent (use hover which is mode-aware)
+        string: semantic.accent.primaryHover,
+        // 3. Keywords - muted gray
+        keyword: semantic.text.muted,
+        // 4. Comments - very muted
+        comment: isDark ? neutral.gray600 : neutral.gray400,
+        // 5. Everything else - inherit
         punctuation: semantic.text.secondary,
-        property: rainbow.cyan,
-        className: rainbow.purple,
-        boolean: rainbow.orange,
         operator: semantic.text.secondary,
       },
     },
@@ -47,9 +49,9 @@ export function createComponentTokens(semantic: SemanticTokens, _mode: ThemeMode
     playButton: {
       background: semantic.background.elevated,
       border: semantic.border.default,
-      activeBackground: rainbow.red,
-      iconPlay: semantic.accent.primary,
-      iconStop: semantic.text.primary,
+      activeBackground: semantic.accent.primary,
+      activeText: semantic.accent.onAccent,
+      icon: semantic.text.primary,
     },
 
     waveform: {
@@ -57,21 +59,20 @@ export function createComponentTokens(semantic: SemanticTokens, _mode: ThemeMode
       grid: semantic.border.subtle,
       centerLine: semantic.border.default,
       stroke: semantic.accent.primary,
-      glow: `${semantic.accent.primary}60`,
+      fill: semantic.accent.primaryMuted,
     },
 
     meter: {
-      background: semantic.background.sunken,
+      background: semantic.background.elevated,
       fill: semantic.accent.primary,
       track: semantic.border.subtle,
-      tickMark: semantic.border.default,
     },
 
     sidebar: {
       background: semantic.background.surface,
       border: semantic.border.subtle,
       itemHover: semantic.background.elevated,
-      itemSelected: `${semantic.accent.primary}20`,
+      itemSelected: semantic.accent.primaryMuted,
       textSelected: semantic.accent.primary,
     },
 
@@ -82,9 +83,17 @@ export function createComponentTokens(semantic: SemanticTokens, _mode: ThemeMode
 
     liveDemo: {
       background: semantic.background.surface,
-      border: `${semantic.accent.tertiary}30`,
-      headerBackground: `${semantic.accent.tertiary}10`,
-      headerText: semantic.accent.tertiary,
+      border: semantic.border.subtle,
+      headerBackground: semantic.background.elevated,
+      headerText: semantic.accent.primary,
+    },
+
+    // Border radius tokens
+    borderRadius: {
+      small: 4,
+      medium: 8,
+      large: 12,
+      pill: 9999,
     },
   } as const
 }

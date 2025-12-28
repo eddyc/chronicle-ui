@@ -1,45 +1,29 @@
 /**
  * Chronicle UI Gradient Tokens
- * Peter Max-inspired rainbow gradients
+ * Minimal design - no rainbow gradients, only subtle accent fades
  */
 
 import { primitives } from './primitives'
 
-const { rainbow } = primitives
+const { accent, neutral } = primitives
 
 export const gradients = {
-  // Full rainbow spectrum
-  rainbow: {
-    horizontal: `linear-gradient(90deg, ${rainbow.red}, ${rainbow.orange}, ${rainbow.yellow}, ${rainbow.green}, ${rainbow.cyan}, ${rainbow.blue}, ${rainbow.purple}, ${rainbow.magenta})`,
-    vertical: `linear-gradient(180deg, ${rainbow.red}, ${rainbow.orange}, ${rainbow.yellow}, ${rainbow.green}, ${rainbow.cyan}, ${rainbow.blue}, ${rainbow.purple}, ${rainbow.magenta})`,
-    diagonal: `linear-gradient(135deg, ${rainbow.red}, ${rainbow.orange}, ${rainbow.yellow}, ${rainbow.green}, ${rainbow.cyan}, ${rainbow.blue}, ${rainbow.purple}, ${rainbow.magenta})`,
-    circular: `conic-gradient(${rainbow.red}, ${rainbow.orange}, ${rainbow.yellow}, ${rainbow.green}, ${rainbow.cyan}, ${rainbow.blue}, ${rainbow.purple}, ${rainbow.magenta}, ${rainbow.red})`,
-    radial: `radial-gradient(circle, ${rainbow.yellow}, ${rainbow.orange}, ${rainbow.magenta}, ${rainbow.purple})`,
+  // Simple accent gradient (for rare decorative use)
+  accent: {
+    horizontal: `linear-gradient(90deg, ${accent.dark}, ${accent.primary}, ${accent.light})`,
+    vertical: `linear-gradient(180deg, ${accent.dark}, ${accent.primary})`,
   },
 
-  // Warm sunset (red → yellow)
-  sunset: {
-    horizontal: `linear-gradient(90deg, ${rainbow.red}, ${rainbow.orange}, ${rainbow.yellow})`,
-    vertical: `linear-gradient(180deg, ${rainbow.red}, ${rainbow.orange}, ${rainbow.yellow})`,
+  // Neutral fade (for backgrounds)
+  neutral: {
+    horizontal: `linear-gradient(90deg, ${neutral.gray700}, ${neutral.gray600})`,
+    vertical: `linear-gradient(180deg, ${neutral.gray800}, ${neutral.gray900})`,
   },
 
-  // Cool ocean (cyan → purple)
-  ocean: {
-    horizontal: `linear-gradient(90deg, ${rainbow.cyan}, ${rainbow.blue}, ${rainbow.indigo}, ${rainbow.purple})`,
-    vertical: `linear-gradient(180deg, ${rainbow.cyan}, ${rainbow.blue}, ${rainbow.indigo}, ${rainbow.purple})`,
-  },
-
-  // Cosmic (magenta → cyan)
-  cosmic: {
-    horizontal: `linear-gradient(90deg, ${rainbow.magenta}, ${rainbow.purple}, ${rainbow.indigo}, ${rainbow.cyan})`,
-    vertical: `linear-gradient(180deg, ${rainbow.magenta}, ${rainbow.purple}, ${rainbow.indigo}, ${rainbow.cyan})`,
-    radial: `radial-gradient(circle, ${rainbow.cyan}, ${rainbow.purple}, ${rainbow.magenta})`,
-  },
-
-  // Nature (green → yellow)
-  nature: {
-    horizontal: `linear-gradient(90deg, ${rainbow.green}, ${rainbow.lime}, ${rainbow.yellow})`,
-    vertical: `linear-gradient(180deg, ${rainbow.green}, ${rainbow.lime}, ${rainbow.yellow})`,
+  // Transparent fades
+  fade: {
+    toTransparent: `linear-gradient(180deg, transparent, ${neutral.black}40)`,
+    fromTransparent: `linear-gradient(180deg, ${neutral.black}40, transparent)`,
   },
 } as const
 
