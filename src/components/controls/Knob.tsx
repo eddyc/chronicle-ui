@@ -32,7 +32,9 @@ export function Knob({
   const [isDragging, setIsDragging] = useState(false)
   const dragState = useRef({ startY: 0, startValue: 0 })
 
-  const normalizedValue = (value - min) / (max - min)
+  // Guard against undefined value (can happen during state initialization)
+  const safeValue = value ?? min
+  const normalizedValue = (safeValue - min) / (max - min)
   const rotation = normalizedValue * 270 - 135
 
   const clamp = (val: number, minVal: number, maxVal: number) =>
@@ -42,9 +44,9 @@ export function Knob({
     (e: React.MouseEvent) => {
       e.preventDefault()
       setIsDragging(true)
-      dragState.current = { startY: e.clientY, startValue: value }
+      dragState.current = { startY: e.clientY, startValue: safeValue }
     },
-    [value]
+    [safeValue]
   )
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export function Knob({
     }
   }, [isDragging, min, max, step, onChange])
 
-  const displayValue = step < 1 ? value.toFixed(1) : value.toFixed(0)
+  const displayValue = step < 1 ? safeValue.toFixed(1) : safeValue.toFixed(0)
 
   return (
     <Box
