@@ -2,6 +2,11 @@ import { Box, Typography } from '@mui/material'
 import { useRef, useCallback, useState, useEffect } from 'react'
 import { useChronicleTheme } from '../../hooks'
 
+// Debounce interval for parameter updates (ms)
+// 16ms = ~60fps, reduces main thread work during rapid knob drags
+// This improves MIDI responsiveness when adjusting knobs during playback
+const DEBOUNCE_MS = 16
+
 interface KnobProps {
   label: string
   value: number
@@ -16,6 +21,9 @@ interface KnobProps {
 /**
  * Flat vector-style rotary knob control
  * Clean modern aesthetic - subtle, professional
+ *
+ * Uses local state for smooth visual feedback during dragging,
+ * with debounced callbacks to reduce main thread blocking.
  */
 export function Knob({
   label,
@@ -32,9 +40,34 @@ export function Knob({
   const [isDragging, setIsDragging] = useState(false)
   const dragState = useRef({ startY: 0, startValue: 0 })
 
-  // Guard against undefined value (can happen during state initialization)
-  const safeValue = value ?? min
-  const normalizedValue = (safeValue - min) / (max - min)
+  // Local value for smooth visual feedback during dragging
+  const [localValue, setLocalValue] = useState(value)
+
+  // Sync local value with prop when not dragging
+  useEffect(() => {
+    if (!isDragging) {
+      setLocalValue(value)
+    }
+  }, [value, isDragging])
+
+  // Debounce ref for batching onChange calls
+  const debounceRef = useRef<{
+    timerId: ReturnType<typeof setTimeout> | null
+    pendingValue: number | null
+  }>({ timerId: null, pendingValue: null })
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current.timerId !== null) {
+        clearTimeout(debounceRef.current.timerId)
+      }
+    }
+  }, [])
+
+  // Guard against undefined value
+  const displayValue = localValue ?? min
+  const normalizedValue = (displayValue - min) / (max - min)
   const rotation = normalizedValue * 270 - 135
 
   const clamp = (val: number, minVal: number, maxVal: number) =>
@@ -44,9 +77,9 @@ export function Knob({
     (e: React.MouseEvent) => {
       e.preventDefault()
       setIsDragging(true)
-      dragState.current = { startY: e.clientY, startValue: safeValue }
+      dragState.current = { startY: e.clientY, startValue: displayValue }
     },
-    [safeValue]
+    [displayValue]
   )
 
   useEffect(() => {
@@ -59,10 +92,37 @@ export function Knob({
       let newValue = dragState.current.startValue + deltaY * sensitivity
       newValue = Math.round(newValue / step) * step
       newValue = clamp(newValue, min, max)
-      onChange(newValue)
+
+      // Update local state immediately for smooth visual feedback
+      setLocalValue(newValue)
+
+      // Debounce the parent callback to reduce main thread work
+      debounceRef.current.pendingValue = newValue
+      if (debounceRef.current.timerId === null) {
+        debounceRef.current.timerId = setTimeout(() => {
+          const valueToSend = debounceRef.current.pendingValue
+          debounceRef.current.timerId = null
+          debounceRef.current.pendingValue = null
+          if (valueToSend !== null) {
+            onChange(valueToSend)
+          }
+        }, DEBOUNCE_MS)
+      }
     }
 
-    const handleMouseUp = () => setIsDragging(false)
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      // Flush any pending debounced value immediately on mouse up
+      if (debounceRef.current.timerId !== null) {
+        clearTimeout(debounceRef.current.timerId)
+        debounceRef.current.timerId = null
+      }
+      const valueToSend = debounceRef.current.pendingValue
+      debounceRef.current.pendingValue = null
+      if (valueToSend !== null) {
+        onChange(valueToSend)
+      }
+    }
 
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
@@ -72,7 +132,7 @@ export function Knob({
     }
   }, [isDragging, min, max, step, onChange])
 
-  const displayValue = step < 1 ? safeValue.toFixed(1) : safeValue.toFixed(0)
+  const formattedValue = step < 1 ? displayValue.toFixed(1) : displayValue.toFixed(0)
 
   return (
     <Box
@@ -140,7 +200,7 @@ export function Knob({
           textAlign: 'center',
         }}
       >
-        {displayValue}
+        {formattedValue}
         {unit}
       </Typography>
     </Box>
