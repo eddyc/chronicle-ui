@@ -30,6 +30,7 @@
     "build-storybook": "storybook build"
   },
   "peerDependencies": {
+    "@eddyc/chronicle-client": "*",
     "@emotion/react": "^11.0.0",
     "@emotion/styled": "^11.0.0",
     "@mui/material": "^5.0.0",
@@ -44,6 +45,7 @@
     "prismjs": "^1.29.0"
   },
   "devDependencies": {
+    "@eddyc/chronicle-client": "workspace:*",
     "@fontsource/jetbrains-mono": "^5.2.5",
     "@fontsource/nunito": "^5.2.7",
     "@fontsource/righteous": "^5.2.7",
