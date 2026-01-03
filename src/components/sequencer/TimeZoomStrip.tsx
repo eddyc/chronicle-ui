@@ -4,10 +4,13 @@
  * A dedicated strip above the timeline ruler for:
  * - Drag left/right to pan time
  * - Drag up/down to zoom time
+ *
+ * Uses D3-drag for unified mouse + touch support.
  */
 
 import { Box } from '@mui/material'
-import { useRef, useCallback } from 'react'
+import { useRef, useEffect } from 'react'
+import * as d3 from 'd3'
 import { useChronicleTheme } from '../../hooks'
 
 // ============ Types ============
@@ -41,53 +44,54 @@ export function TimeZoomStrip({
 }: TimeZoomStripProps) {
   const { semantic } = useChronicleTheme()
   const containerRef = useRef<HTMLDivElement>(null)
-  const dragAnchorRef = useRef<{ anchorBeat: number } | null>(null)
-  const lastYRef = useRef<number>(0)
 
-  // Pan/zoom via drag
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (!containerRef.current) return
+  // Use refs for values that change but shouldn't trigger effect re-runs
+  const viewportRef = useRef({ startBeat, endBeat, width })
+  viewportRef.current = { startBeat, endBeat, width }
 
-      const rect = containerRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const ratio = x / width
+  // Set up D3 drag for unified mouse + touch support
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
 
-      // Calculate the beat under the cursor at drag start
-      const visibleBeats = endBeat - startBeat
-      const anchorBeat = startBeat + ratio * visibleBeats
+    let anchorBeat = 0
+    let lastY = 0
 
-      dragAnchorRef.current = { anchorBeat }
-      lastYRef.current = e.clientY
+    const drag = d3
+      .drag<HTMLDivElement, unknown>()
+      .on('start', (event) => {
+        const rect = container.getBoundingClientRect()
+        const localX = event.sourceEvent.clientX - rect.left
+        const ratio = localX / viewportRef.current.width
 
-      const handleMouseMove = (moveEvent: MouseEvent) => {
-        if (!dragAnchorRef.current || !containerRef.current) return
+        // Calculate the beat under the cursor at drag start
+        const visibleBeats = viewportRef.current.endBeat - viewportRef.current.startBeat
+        anchorBeat = viewportRef.current.startBeat + ratio * visibleBeats
 
-        const rect = containerRef.current.getBoundingClientRect()
-        const currentX = moveEvent.clientX - rect.left
-        const currentRatio = Math.max(0, Math.min(1, currentX / width))
+        lastY = event.sourceEvent.clientY
+      })
+      .on('drag', (event) => {
+        const rect = container.getBoundingClientRect()
+        const localX = event.sourceEvent.clientX - rect.left
+        const currentRatio = Math.max(0, Math.min(1, localX / viewportRef.current.width))
 
         // Calculate zoom from vertical drag (deltaY since last frame)
-        const deltaY = moveEvent.clientY - lastYRef.current
-        lastYRef.current = moveEvent.clientY
+        const currentY = event.sourceEvent.clientY
+        const deltaY = currentY - lastY
+        lastY = currentY
 
         // Drag down = zoom in (smaller range), drag up = zoom out
         const zoomDelta = 1 - deltaY * 0.01
 
-        onPanZoom(dragAnchorRef.current.anchorBeat, currentRatio, zoomDelta)
-      }
+        onPanZoom(anchorBeat, currentRatio, zoomDelta)
+      })
 
-      const cleanup = () => {
-        dragAnchorRef.current = null
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', cleanup)
-      }
+    d3.select(container).call(drag)
 
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', cleanup)
-    },
-    [startBeat, endBeat, width, onPanZoom]
-  )
+    return () => {
+      d3.select(container).on('.drag', null)
+    }
+  }, [onPanZoom])
 
   return (
     <Box
@@ -100,11 +104,11 @@ export function TimeZoomStrip({
         position: 'relative',
         cursor: 'zoom-in',
         userSelect: 'none',
+        touchAction: 'none', // Prevent browser gestures
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
       }}
-      onMouseDown={handleMouseDown}
     >
       {/* Optional: could add a subtle zoom icon or label here */}
     </Box>

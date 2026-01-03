@@ -1,5 +1,6 @@
 import { Box, Typography } from '@mui/material'
 import { useRef, useCallback, useState, useEffect } from 'react'
+import * as d3 from 'd3'
 import { useChronicleTheme } from '../../hooks'
 
 // Debounce interval for parameter updates (ms)
@@ -22,7 +23,8 @@ interface KnobProps {
  * Flat vector-style rotary knob control
  * Clean modern aesthetic - subtle, professional
  *
- * Uses local state for smooth visual feedback during dragging,
+ * Uses D3-drag for unified mouse + touch support.
+ * Local state provides smooth visual feedback during dragging,
  * with debounced callbacks to reduce main thread blocking.
  */
 export function Knob({
@@ -38,7 +40,6 @@ export function Knob({
   const { semantic, components } = useChronicleTheme()
   const knobRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const dragState = useRef({ startY: 0, startValue: 0 })
 
   // Local value for smooth visual feedback during dragging
   const [localValue, setLocalValue] = useState(value)
@@ -73,64 +74,64 @@ export function Knob({
   const clamp = (val: number, minVal: number, maxVal: number) =>
     Math.min(Math.max(val, minVal), maxVal)
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      setIsDragging(true)
-      dragState.current = { startY: e.clientY, startValue: displayValue }
-    },
-    [displayValue]
-  )
-
+  // Set up D3 drag for unified mouse + touch support
   useEffect(() => {
-    if (!isDragging) return
+    const knob = knobRef.current
+    if (!knob) return
 
     const sensitivity = (max - min) / 150
+    let startY = 0
+    let startValue = 0
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaY = dragState.current.startY - e.clientY
-      let newValue = dragState.current.startValue + deltaY * sensitivity
-      newValue = Math.round(newValue / step) * step
-      newValue = clamp(newValue, min, max)
+    const drag = d3
+      .drag<HTMLDivElement, unknown>()
+      .on('start', (event) => {
+        setIsDragging(true)
+        startY = event.y
+        startValue = localValue ?? min
+      })
+      .on('drag', (event) => {
+        const deltaY = startY - event.y
+        let newValue = startValue + deltaY * sensitivity
+        newValue = Math.round(newValue / step) * step
+        newValue = clamp(newValue, min, max)
 
-      // Update local state immediately for smooth visual feedback
-      setLocalValue(newValue)
+        // Update local state immediately for smooth visual feedback
+        setLocalValue(newValue)
 
-      // Debounce the parent callback to reduce main thread work
-      debounceRef.current.pendingValue = newValue
-      if (debounceRef.current.timerId === null) {
-        debounceRef.current.timerId = setTimeout(() => {
-          const valueToSend = debounceRef.current.pendingValue
+        // Debounce the parent callback to reduce main thread work
+        debounceRef.current.pendingValue = newValue
+        if (debounceRef.current.timerId === null) {
+          debounceRef.current.timerId = setTimeout(() => {
+            const valueToSend = debounceRef.current.pendingValue
+            debounceRef.current.timerId = null
+            debounceRef.current.pendingValue = null
+            if (valueToSend !== null) {
+              onChange(valueToSend)
+            }
+          }, DEBOUNCE_MS)
+        }
+      })
+      .on('end', () => {
+        setIsDragging(false)
+        // Flush any pending debounced value immediately on drag end
+        if (debounceRef.current.timerId !== null) {
+          clearTimeout(debounceRef.current.timerId)
           debounceRef.current.timerId = null
-          debounceRef.current.pendingValue = null
-          if (valueToSend !== null) {
-            onChange(valueToSend)
-          }
-        }, DEBOUNCE_MS)
-      }
-    }
+        }
+        const valueToSend = debounceRef.current.pendingValue
+        debounceRef.current.pendingValue = null
+        if (valueToSend !== null) {
+          onChange(valueToSend)
+        }
+      })
 
-    const handleMouseUp = () => {
-      setIsDragging(false)
-      // Flush any pending debounced value immediately on mouse up
-      if (debounceRef.current.timerId !== null) {
-        clearTimeout(debounceRef.current.timerId)
-        debounceRef.current.timerId = null
-      }
-      const valueToSend = debounceRef.current.pendingValue
-      debounceRef.current.pendingValue = null
-      if (valueToSend !== null) {
-        onChange(valueToSend)
-      }
-    }
+    d3.select(knob).call(drag)
 
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
+      d3.select(knob).on('.drag', null)
     }
-  }, [isDragging, min, max, step, onChange])
+  }, [min, max, step, onChange, localValue])
 
   const formattedValue = step < 1 ? displayValue.toFixed(1) : displayValue.toFixed(0)
 
@@ -142,6 +143,7 @@ export function Knob({
         alignItems: 'center',
         gap: 0.75,
         userSelect: 'none',
+        touchAction: 'none', // Prevent browser gestures interfering with drag
       }}
     >
       {/* Label */}
@@ -159,7 +161,6 @@ export function Knob({
       {/* Knob - flat vector style */}
       <Box
         ref={knobRef}
-        onMouseDown={handleMouseDown}
         sx={{
           width: size,
           height: size,
@@ -170,6 +171,7 @@ export function Knob({
           backgroundColor: components.knob.background,
           border: `2px solid ${components.knob.track}`,
           transition: 'border-color 0.15s ease',
+          touchAction: 'none', // Prevent browser gestures
           '&:hover': {
             borderColor: semantic.border.strong,
           },

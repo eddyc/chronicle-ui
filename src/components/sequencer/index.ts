@@ -19,13 +19,21 @@ export {
 
 // Hooks
 export {
-  usePianoRollDrag,
-  type DragType,
-  type DragState,
-  type BrushRect,
-  type UsePianoRollDragOptions,
-  type UsePianoRollDragResult,
+  usePianoRollScales,
+  type PianoRollScales,
+  type UsePianoRollScalesOptions,
 } from './hooks'
+
+// D3 hooks
+export {
+  useD3Grid,
+  useD3Notes,
+  useD3NoteDrag,
+  useD3Brush,
+  useD3Overlays,
+  useD3Zoom,
+  type BrushRect,
+} from './d3'
 
 // Utilities
 export {
@@ -43,10 +51,6 @@ export {
   // Grid helpers
   snap,
   createNoteId,
-  // Coordinate conversion
-  createCoordinateHelpers,
-  type CoordinateHelpers,
-  type CreateCoordinateHelpersOptions,
   // Grid density
   calculateGridStep,
   classifyBeat,

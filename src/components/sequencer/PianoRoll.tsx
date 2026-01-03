@@ -30,6 +30,7 @@ import { TimeZoomStrip, TIME_ZOOM_STRIP_HEIGHT } from './TimeZoomStrip'
 import { PitchZoomStrip, PITCH_ZOOM_STRIP_WIDTH } from './PitchZoomStrip'
 import { PianoKeyboard } from './PianoKeyboard'
 import { PianoRollGrid } from './PianoRollGrid'
+import { usePianoRollScales } from './hooks/usePianoRollScales'
 import type { MidiClip } from '@eddyc/chronicle-client'
 import {
   DEFAULT_VISIBLE_BEATS,
@@ -93,7 +94,7 @@ export function PianoRoll({
   const gridRef = useRef<HTMLDivElement>(null)
 
   // Viewport state for pan/zoom
-  const { viewport, panZoomTime, panZoomPitch, createWheelHandler } =
+  const { viewport, panZoomTime, panZoomPitch, panTime, panPitch } =
     usePianoRollViewport({
       clipLength: clip.length,
       initialBeats: visibleBeats,
@@ -132,9 +133,15 @@ export function PianoRoll({
   }, [leftColumnWidth])
 
   // Calculate dimensions using viewport
-  const noteRange = viewport.highNote - viewport.lowNote + 1
   const gridHeight = gridContainerHeight
-  const noteHeight = gridHeight / noteRange
+
+  // Create D3 scales for coordinate conversion - single source of truth
+  const scales = usePianoRollScales({
+    viewport,
+    gridWidth,
+    gridHeight,
+    snapToBeat,
+  })
 
   // Handle loop start change
   const handleLoopStartChange = useCallback(
@@ -156,35 +163,6 @@ export function PianoRoll({
       })
     },
     [clip, onClipChange]
-  )
-
-  // Delete selected notes
-  const deleteSelectedNotes = useCallback(() => {
-    onClipChange({
-      ...clip,
-      notes: clip.notes.filter((n) => !selection.has(n.id)),
-    })
-    setSelection(new Set())
-  }, [clip, onClipChange, selection, setSelection])
-
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        deleteSelectedNotes()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [deleteSelectedNotes])
-
-  // Create wheel handler for grid panning
-  const wheelHandler = useCallback(
-    (e: WheelEvent) => {
-      const handler = createWheelHandler(gridWidth, gridHeight)
-      handler(e)
-    },
-    [createWheelHandler, gridWidth, gridHeight]
   )
 
   return (
@@ -246,6 +224,7 @@ export function PianoRoll({
           onLoopStartChange={handleLoopStartChange}
           onLoopEndChange={handleLoopEndChange}
           clipLength={clip.length}
+          xToBeat={scales.xToBeat}
         />
       </Box>
 
@@ -255,7 +234,8 @@ export function PianoRoll({
         <PitchZoomStrip
           viewport={viewport}
           gridHeight={gridHeight}
-          noteHeight={noteHeight}
+          noteHeight={scales.noteHeight}
+          pitchToY={scales.pitchToY}
           hoveredPitch={hoveredPitch}
           onPanZoomPitch={panZoomPitch}
         />
@@ -264,7 +244,8 @@ export function PianoRoll({
         <PianoKeyboard
           viewport={viewport}
           gridHeight={gridHeight}
-          noteHeight={noteHeight}
+          noteHeight={scales.noteHeight}
+          pitchToY={scales.pitchToY}
           hoveredPitch={hoveredPitch}
           onHoverPitch={setHoveredPitch}
           onNotePreview={onNotePreview}
@@ -278,12 +259,15 @@ export function PianoRoll({
           viewport={viewport}
           gridWidth={gridWidth}
           gridHeight={gridHeight}
-          noteHeight={noteHeight}
+          noteHeight={scales.noteHeight}
           snapToBeat={snapToBeat}
           selection={selection}
           onSelectionChange={setSelection}
           playheadBeat={playheadBeat}
-          onWheel={wheelHandler}
+          panZoomTime={panZoomTime}
+          panZoomPitch={panZoomPitch}
+          panTime={panTime}
+          panPitch={panPitch}
           loopStart={clip.loopStart ?? 0}
           loopEnd={clip.loopEnd ?? clip.length}
         />

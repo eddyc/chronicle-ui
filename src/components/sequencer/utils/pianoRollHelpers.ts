@@ -1,11 +1,9 @@
 /**
  * Piano roll utility functions
  *
- * Helper functions for MIDI note naming, coordinate conversion,
- * and grid snapping used across piano roll components.
+ * Helper functions for MIDI note naming and grid snapping
+ * used across piano roll components.
  */
-
-import type { ViewportState } from '../../../hooks'
 
 // ============ Constants ============
 
@@ -51,58 +49,6 @@ export function snap(value: number, grid: number): number {
  */
 export function createNoteId(): string {
   return `note_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
-}
-
-// ============ Coordinate Conversion ============
-
-export interface CoordinateHelpers {
-  /** Convert pixel X to beat position */
-  pixelToBeat: (x: number) => number
-  /** Convert pixel Y to pitch */
-  pixelToPitch: (y: number) => number
-  /** Convert beat to pixel X */
-  beatToX: (beat: number) => number
-  /** Convert pitch to pixel Y */
-  pitchToY: (pitch: number) => number
-}
-
-export interface CreateCoordinateHelpersOptions {
-  viewport: ViewportState
-  gridWidth: number
-  gridHeight: number
-  noteHeight: number
-  snapToBeat: number
-}
-
-/**
- * Create coordinate conversion functions for a given viewport and grid dimensions
- */
-export function createCoordinateHelpers(
-  options: CreateCoordinateHelpersOptions
-): CoordinateHelpers {
-  const { viewport, gridWidth, gridHeight, noteHeight, snapToBeat } = options
-  const beatsVisible = viewport.endBeat - viewport.startBeat
-  const noteRange = viewport.highNote - viewport.lowNote + 1
-
-  return {
-    pixelToBeat: (x: number): number => {
-      const beat = viewport.startBeat + (x / gridWidth) * beatsVisible
-      return snap(beat, snapToBeat)
-    },
-
-    pixelToPitch: (y: number): number => {
-      const row = Math.floor(y / noteHeight)
-      return viewport.highNote - row
-    },
-
-    beatToX: (beat: number): number => {
-      return ((beat - viewport.startBeat) / beatsVisible) * gridWidth
-    },
-
-    pitchToY: (pitch: number): number => {
-      return (viewport.highNote - pitch) * noteHeight
-    },
-  }
 }
 
 // ============ Grid Density ============

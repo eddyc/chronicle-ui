@@ -27,6 +27,8 @@ export interface PianoKeyboardProps {
   gridHeight: number
   /** Height of each note row in pixels */
   noteHeight: number
+  /** Convert pitch to Y position (from D3 scales) */
+  pitchToY: (pitch: number) => number
   /** Currently hovered pitch (for highlighting) */
   hoveredPitch: number | null
   /** Callback when hover changes */
@@ -51,6 +53,7 @@ export function PianoKeyboard({
   viewport,
   gridHeight,
   noteHeight,
+  pitchToY,
   hoveredPitch,
   onHoverPitch,
   onNotePreview,
@@ -61,14 +64,6 @@ export function PianoKeyboard({
 
   // Preview state for piano keys (playing note)
   const [previewPitch, setPreviewPitch] = useState<number | null>(null)
-
-  // Convert pitch to Y position
-  const pitchToY = useCallback(
-    (pitch: number): number => {
-      return (viewport.highNote - pitch) * noteHeight
-    },
-    [viewport.highNote, noteHeight]
-  )
 
   // Handle mouse down - start note preview
   const handleKeyMouseDown = useCallback(

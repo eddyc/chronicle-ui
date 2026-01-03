@@ -6,10 +6,13 @@
  * - Drag left/right to zoom pitch
  * - Displays octave markers (C3, C4, etc.)
  * - Shows hovered note name when hovering over piano keys
+ *
+ * Uses D3-drag for unified mouse + touch support.
  */
 
 import { Box } from '@mui/material'
-import { useRef, useCallback } from 'react'
+import { useRef, useEffect } from 'react'
+import * as d3 from 'd3'
 import { useChronicleTheme } from '../../hooks'
 import type { ViewportState } from '../../hooks'
 import { midiToNoteName } from './utils/pianoRollHelpers'
@@ -23,6 +26,8 @@ export interface PitchZoomStripProps {
   gridHeight: number
   /** Height of each note row in pixels */
   noteHeight: number
+  /** Convert pitch to Y position (from D3 scales) */
+  pitchToY: (pitch: number) => number
   /** Currently hovered pitch from piano keyboard */
   hoveredPitch: number | null
   /** Callback for pan/zoom with cursor anchoring */
@@ -43,23 +48,18 @@ export function PitchZoomStrip({
   viewport,
   gridHeight,
   noteHeight,
+  pitchToY,
   hoveredPitch,
   onPanZoomPitch,
 }: PitchZoomStripProps) {
   const { semantic } = useChronicleTheme()
   const containerRef = useRef<HTMLDivElement>(null)
-  const dragAnchorRef = useRef<{ anchorPitch: number } | null>(null)
-  const lastXRef = useRef<number>(0)
 
   const noteRange = viewport.highNote - viewport.lowNote + 1
 
-  // Convert pitch to Y position
-  const pitchToY = useCallback(
-    (pitch: number): number => {
-      return (viewport.highNote - pitch) * noteHeight
-    },
-    [viewport.highNote, noteHeight]
-  )
+  // Use refs for values that change but shouldn't trigger effect re-runs
+  const viewportRef = useRef({ viewport, gridHeight, noteRange })
+  viewportRef.current = { viewport, gridHeight, noteRange }
 
   // Generate octave markers (C notes)
   const octaveMarkers: Array<{ pitch: number; label: string; y: number }> = []
@@ -75,49 +75,49 @@ export function PitchZoomStrip({
     }
   }
 
-  // Pan/zoom via drag
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (!containerRef.current) return
+  // Set up D3 drag for unified mouse + touch support
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
 
-      const rect = containerRef.current.getBoundingClientRect()
-      const y = e.clientY - rect.top
-      const ratio = y / gridHeight
+    let anchorPitch = 0
+    let lastX = 0
 
-      // Calculate the pitch under the cursor at drag start
-      const anchorPitch = viewport.highNote - ratio * noteRange
+    const drag = d3
+      .drag<HTMLDivElement, unknown>()
+      .on('start', (event) => {
+        const rect = container.getBoundingClientRect()
+        const localY = event.sourceEvent.clientY - rect.top
+        const ratio = localY / viewportRef.current.gridHeight
 
-      dragAnchorRef.current = { anchorPitch }
-      lastXRef.current = e.clientX
+        // Calculate the pitch under the cursor at drag start
+        const { viewport, noteRange } = viewportRef.current
+        anchorPitch = viewport.highNote - ratio * noteRange
 
-      const handleMouseMove = (moveEvent: MouseEvent) => {
-        if (!dragAnchorRef.current || !containerRef.current) return
-
-        const rect = containerRef.current.getBoundingClientRect()
-        const currentY = moveEvent.clientY - rect.top
-        const currentRatio = Math.max(0, Math.min(1, currentY / gridHeight))
+        lastX = event.sourceEvent.clientX
+      })
+      .on('drag', (event) => {
+        const rect = container.getBoundingClientRect()
+        const localY = event.sourceEvent.clientY - rect.top
+        const currentRatio = Math.max(0, Math.min(1, localY / viewportRef.current.gridHeight))
 
         // Calculate zoom from horizontal drag (deltaX since last frame)
-        const deltaX = moveEvent.clientX - lastXRef.current
-        lastXRef.current = moveEvent.clientX
+        const currentX = event.sourceEvent.clientX
+        const deltaX = currentX - lastX
+        lastX = currentX
 
         // Drag right = zoom in (smaller range), drag left = zoom out
         const zoomDelta = 1 - deltaX * 0.01
 
-        onPanZoomPitch(dragAnchorRef.current.anchorPitch, currentRatio, zoomDelta)
-      }
+        onPanZoomPitch(anchorPitch, currentRatio, zoomDelta)
+      })
 
-      const cleanup = () => {
-        dragAnchorRef.current = null
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', cleanup)
-      }
+    d3.select(container).call(drag)
 
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', cleanup)
-    },
-    [viewport.highNote, noteRange, gridHeight, onPanZoomPitch]
-  )
+    return () => {
+      d3.select(container).on('.drag', null)
+    }
+  }, [onPanZoomPitch])
 
   return (
     <Box
@@ -131,9 +131,9 @@ export function PitchZoomStrip({
         position: 'relative',
         cursor: 'zoom-in',
         userSelect: 'none',
+        touchAction: 'none', // Prevent browser gestures
         overflow: 'hidden',
       }}
-      onMouseDown={handleMouseDown}
     >
       {/* Octave markers - centered with the C key (same position as hover indicator) */}
       {octaveMarkers.map(({ pitch, label, y }) => (

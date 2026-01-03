@@ -36,6 +36,8 @@ export interface TimelineRulerProps {
   clipLength?: number
   /** @deprecated Use loopEnd and onLoopEndChange instead */
   onClipLengthChange?: (newLength: number) => void
+  /** Convert pixel X to beat (from D3 scales, for consistent coordinate math) */
+  xToBeat?: (x: number) => number
 }
 
 type DragHandle = 'start' | 'end' | null
@@ -52,6 +54,7 @@ export function TimelineRuler({
   onLoopEndChange,
   clipLength,
   onClipLengthChange,
+  xToBeat: xToBeatProp,
 }: TimelineRulerProps) {
   const { semantic } = useChronicleTheme()
   const rulerRef = useRef<HTMLDivElement>(null)
@@ -62,15 +65,19 @@ export function TimelineRuler({
   // Loop handle drag state
   const [draggingHandle, setDraggingHandle] = useState<DragHandle>(null)
 
-  // Convert pixel X to beat position
+  // Convert pixel X to beat position - use passed function or fallback to local calculation
   const pixelToBeat = useCallback(
     (x: number): number => {
+      if (xToBeatProp) {
+        return xToBeatProp(x)
+      }
+      // Fallback for backwards compatibility
       const visibleBeats = endBeat - startBeat
       const beat = startBeat + (x / width) * visibleBeats
       // Snap to 1/16th note grid
       return Math.round(beat * 4) / 4
     },
-    [startBeat, endBeat, width]
+    [xToBeatProp, startBeat, endBeat, width]
   )
 
   // Handle loop start drag

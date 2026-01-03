@@ -71,8 +71,6 @@ export interface UsePianoRollViewportResult {
   panZoomPitch: (anchorPitch: number, anchorRatio: number, zoomFactor: number) => void
   /** Reset viewport to show all notes */
   resetViewport: () => void
-  /** Create wheel event handler for grid panning. Pass grid dimensions. */
-  createWheelHandler: (gridWidth: number, gridHeight: number) => (e: WheelEvent) => void
 }
 
 // ============ Helpers ============
@@ -299,33 +297,6 @@ export function usePianoRollViewport(
     })
   }, [])
 
-  // Create wheel handler for grid panning
-  const createWheelHandler = useCallback(
-    (gridWidth: number, gridHeight: number) => {
-      return (e: WheelEvent) => {
-        e.preventDefault()
-
-        // Two-finger scroll → pan
-        const beatsVisible = viewport.endBeat - viewport.startBeat
-        const notesVisible = viewport.highNote - viewport.lowNote
-
-        const beatsPerPixel = beatsVisible / gridWidth
-        const notesPerPixel = notesVisible / gridHeight
-
-        // Horizontal pan (deltaX)
-        if (Math.abs(e.deltaX) > 0) {
-          panTime(e.deltaX * beatsPerPixel * 0.5)
-        }
-
-        // Vertical pan (deltaY) - negative because wheel up = scroll up = higher notes
-        if (Math.abs(e.deltaY) > 0) {
-          panPitch(-e.deltaY * notesPerPixel * 0.5)
-        }
-      }
-    },
-    [viewport, panTime, panPitch]
-  )
-
   return {
     viewport,
     panTime,
@@ -335,6 +306,5 @@ export function usePianoRollViewport(
     panZoomTime,
     panZoomPitch,
     resetViewport,
-    createWheelHandler,
   }
 }

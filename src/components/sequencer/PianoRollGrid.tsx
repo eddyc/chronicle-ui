@@ -1,27 +1,27 @@
 /**
- * PianoRollGrid - Note grid area for PianoRoll
+ * PianoRollGrid - Note grid area for PianoRoll (D3 version)
  *
- * Renders the main editing area of the piano roll:
+ * Renders the main editing area of the piano roll using D3:
  * - Grid lines (horizontal pitch rows, vertical beat columns)
  * - MIDI notes with selection highlighting
  * - Playhead position indicator
- * - Brush selection rectangle
+ * - Brush selection
  *
- * Handles all mouse interactions via usePianoRollDrag hook.
+ * All rendering and interactions are handled by D3 hooks.
  */
 
 import { Box } from '@mui/material'
-import { useRef, useMemo, useCallback, useEffect } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import { useChronicleTheme } from '../../hooks'
 import type { ViewportState } from '../../hooks'
 import type { MidiClip } from '@eddyc/chronicle-client'
-import { usePianoRollDrag, type DragState } from './hooks'
-import {
-  isBlackKey,
-  generatePitchRows,
-  generateBeatColumns,
-  createCoordinateHelpers,
-} from './utils/pianoRollHelpers'
+import { usePianoRollScales } from './hooks/usePianoRollScales'
+import { useD3Grid } from './d3/useD3Grid'
+import { useD3Notes } from './d3/useD3Notes'
+import { useD3NoteDrag } from './d3/useD3NoteDrag'
+import { useD3Brush } from './d3/useD3Brush'
+import { useD3Overlays } from './d3/useD3Overlays'
+import { useD3Zoom } from './d3/useD3Zoom'
 
 // ============ Types ============
 
@@ -46,17 +46,19 @@ export interface PianoRollGridProps {
   onSelectionChange: (ids: Set<string>) => void
   /** Current playhead position in beats */
   playheadBeat: number
-  /** Callback for wheel events (pan/zoom) */
-  onWheel?: (e: WheelEvent) => void
+  /** Combined pan+zoom for time axis */
+  panZoomTime: (anchorBeat: number, anchorRatio: number, zoomFactor: number) => void
+  /** Combined pan+zoom for pitch axis */
+  panZoomPitch: (anchorPitch: number, anchorRatio: number, zoomFactor: number) => void
+  /** Pan time (for horizontal scroll) */
+  panTime: (deltaBeats: number) => void
+  /** Pan pitch (for vertical scroll) */
+  panPitch: (deltaNotes: number) => void
   /** Loop start position in beats (for dimming notes outside) */
   loopStart?: number
   /** Loop end position in beats (for dimming notes outside) */
   loopEnd?: number
 }
-
-// ============ Constants ============
-
-const ALL_PITCH_ROWS = generatePitchRows()
 
 // ============ Component ============
 
@@ -71,254 +73,138 @@ export function PianoRollGrid({
   selection,
   onSelectionChange,
   playheadBeat,
-  onWheel,
+  panZoomTime,
+  panZoomPitch,
+  panTime,
+  panPitch,
   loopStart = 0,
   loopEnd,
 }: PianoRollGridProps) {
   const { semantic } = useChronicleTheme()
-  const gridRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
 
-  const beatsVisible = viewport.endBeat - viewport.startBeat
+  // D3 scales for coordinate conversion
+  const scales = usePianoRollScales({
+    viewport,
+    gridWidth,
+    gridHeight,
+    snapToBeat,
+  })
 
-  // Create coordinate helpers
-  const coordinateHelpers = useMemo(
-    () =>
-      createCoordinateHelpers({
-        viewport,
-        gridWidth,
-        gridHeight,
-        noteHeight,
-        snapToBeat,
-      }),
-    [viewport, gridWidth, gridHeight, noteHeight, snapToBeat]
-  )
+  // D3 brush for rectangular selection
+  const { brushPreviewIds } = useD3Brush({
+    svgRef,
+    clip,
+    scales,
+    selection,
+    onSelectionChange,
+  })
 
-  const { beatToX, pitchToY } = coordinateHelpers
+  // D3 grid line rendering
+  useD3Grid({
+    svgRef,
+    scales,
+    viewport,
+    theme: {
+      border: {
+        default: semantic.border.default,
+        subtle: semantic.border.subtle,
+      },
+    },
+  })
 
-  // Drag state machine
-  const {
-    dragState,
-    brushRect,
+  // D3 notes rendering
+  useD3Notes({
+    svgRef,
+    notes: clip.notes,
+    scales,
+    viewport,
+    selection,
     brushPreviewIds,
-    handleGridMouseDown,
-    handleGridMouseMove,
-    handleGridMouseUp,
-    handleGridDoubleClick,
-  } = usePianoRollDrag({
+    loopStart,
+    loopEnd: loopEnd ?? clip.length,
+    theme: {
+      accent: {
+        primary: semantic.accent.primary,
+        primaryHover: semantic.accent.primaryHover,
+        primaryPressed: semantic.accent.primaryPressed,
+      },
+    },
+  })
+
+  // D3 drag behavior for notes
+  useD3NoteDrag({
+    svgRef,
     clip,
     onClipChange,
+    scales,
     selection,
     onSelectionChange,
     snapToBeat,
-    noteHeight,
-    gridRef,
-    coordinateHelpers,
   })
 
-  // Generate beat columns with adaptive density
-  const beatColumns = useMemo(
-    () => generateBeatColumns(viewport.startBeat, viewport.endBeat, gridWidth),
-    [viewport.startBeat, viewport.endBeat, gridWidth]
+  // D3 overlays (playhead)
+  useD3Overlays({
+    svgRef,
+    playheadBeat,
+    scales,
+    viewport,
+    theme: {
+      semantic: {
+        error: semantic.semantic.error,
+      },
+    },
+  })
+
+  // D3 zoom/pan (pinch-to-zoom, wheel, trackpad gestures)
+  useD3Zoom({
+    containerRef: svgRef,
+    viewport,
+    gridWidth,
+    gridHeight,
+    panZoomTime,
+    panZoomPitch,
+    panTime,
+    panPitch,
+  })
+
+  // Handle delete key
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selection.size > 0) {
+          onClipChange({
+            ...clip,
+            notes: clip.notes.filter((n) => !selection.has(n.id)),
+          })
+          onSelectionChange(new Set())
+        }
+      }
+    },
+    [clip, onClipChange, selection, onSelectionChange]
   )
 
-  // Attach wheel handler
   useEffect(() => {
-    const grid = gridRef.current
-    if (!grid || !onWheel) return
-    grid.addEventListener('wheel', onWheel, { passive: false })
-    return () => grid.removeEventListener('wheel', onWheel)
-  }, [onWheel])
-
-  // Handle mouse leave - only reset for move/resize, not brush
-  const handleMouseLeave = useCallback(() => {
-    if (dragState.type !== 'none' && dragState.type !== 'brush') {
-      // Let the parent component handle resetting drag state if needed
-    }
-  }, [dragState.type])
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   return (
     <Box
-      ref={gridRef}
+      ref={containerRef}
       sx={{
         flex: 1,
         position: 'relative',
         overflow: 'hidden',
       }}
-      onMouseDown={handleGridMouseDown}
-      onMouseMove={handleGridMouseMove}
-      onMouseUp={handleGridMouseUp}
-      onMouseLeave={handleMouseLeave}
-      onDoubleClick={handleGridDoubleClick}
     >
-      {/* Grid lines */}
       <svg
-        width="100%"
+        ref={svgRef}
+        width={gridWidth}
         height={gridHeight}
-        style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
-      >
-        {/* Horizontal lines (pitch rows) */}
-        {ALL_PITCH_ROWS.map((pitch) => {
-          const y = pitchToY(pitch) + noteHeight
-          // Skip rendering if outside visible area
-          if (y < 0 || y > gridHeight) return null
-
-          const isC = pitch % 12 === 0
-          return (
-            <line
-              key={`h-${pitch}`}
-              x1={0}
-              y1={y}
-              x2="100%"
-              y2={y}
-              stroke={isC ? semantic.border.default : semantic.border.subtle}
-              strokeWidth={isC ? 1 : 0.5}
-            />
-          )
-        })}
-        {/* Vertical lines (beat grid) */}
-        {beatColumns.map(({ beat, level }) => {
-          const x = beatToX(beat)
-          return (
-            <line
-              key={`v-${beat}`}
-              x1={x}
-              y1={0}
-              x2={x}
-              y2={gridHeight}
-              stroke={
-                level === 'bar'
-                  ? semantic.border.default
-                  : level === 'beat'
-                    ? semantic.border.default
-                    : semantic.border.subtle
-              }
-              strokeWidth={level === 'bar' ? 1.5 : level === 'beat' ? 1 : 0.5}
-              opacity={level === 'fine' ? 0.5 : level === 'subbeat' ? 0.7 : 1}
-            />
-          )
-        })}
-      </svg>
-
-      {/* Notes - only render if visible in viewport */}
-      {clip.notes
-        .filter((note) => {
-          const noteEnd = note.startBeat + note.duration
-          const inTimeRange =
-            noteEnd >= viewport.startBeat && note.startBeat <= viewport.endBeat
-          const inPitchRange =
-            note.pitch > viewport.lowNote - 1 &&
-            note.pitch < viewport.highNote + 1
-          return inTimeRange && inPitchRange
-        })
-        .map((note) => {
-          const x = beatToX(note.startBeat)
-          const y = pitchToY(note.pitch)
-          const width = (note.duration / beatsVisible) * gridWidth
-          const isSelected = selection.has(note.id)
-          const isInBrushPreview = brushPreviewIds.has(note.id)
-          const shouldHighlight = isSelected || isInBrushPreview
-          const noteWidth = Math.max(8, width - 1)
-
-          // Check if note is outside loop region
-          const effectiveLoopEnd = loopEnd ?? clip.length
-          const noteEnd = note.startBeat + note.duration
-          const isOutsideLoop =
-            note.startBeat >= effectiveLoopEnd || noteEnd <= loopStart
-
-          return (
-            <Box
-              key={note.id}
-              sx={{
-                position: 'absolute',
-                left: x,
-                top: y,
-                width: noteWidth,
-                height: noteHeight - 1,
-                backgroundColor: shouldHighlight
-                  ? semantic.accent.primary
-                  : semantic.accent.primaryPressed,
-                borderRadius: 0.5,
-                border: shouldHighlight
-                  ? `1px solid ${semantic.accent.primaryHover}`
-                  : `1px solid ${semantic.accent.primaryPressed}`,
-                cursor: dragState.type === 'none' ? 'grab' : 'grabbing',
-                opacity: isOutsideLoop ? 0.4 : 1,
-              }}
-            >
-              {/* Resize handles */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  width: 6,
-                  height: '100%',
-                  cursor: 'ew-resize',
-                }}
-              />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 0,
-                  width: 6,
-                  height: '100%',
-                  cursor: 'ew-resize',
-                }}
-              />
-            </Box>
-          )
-        })}
-
-      {/* Playhead */}
-      {playheadBeat >= viewport.startBeat && playheadBeat <= viewport.endBeat && (
-        <Box
-          sx={{
-            position: 'absolute',
-            left: beatToX(playheadBeat),
-            top: 0,
-            width: 2,
-            height: gridHeight,
-            backgroundColor: semantic.semantic.error,
-            pointerEvents: 'none',
-            zIndex: 10,
-          }}
-        />
-      )}
-
-      {/* Brush selection rectangle */}
-      {brushRect &&
-        (() => {
-          const rawLeft = Math.min(brushRect.x1, brushRect.x2)
-          const rawTop = Math.min(brushRect.y1, brushRect.y2)
-          const rawRight = Math.max(brushRect.x1, brushRect.x2)
-          const rawBottom = Math.max(brushRect.y1, brushRect.y2)
-
-          const clampedLeft = Math.max(0, rawLeft)
-          const clampedTop = Math.max(0, rawTop)
-          const clampedRight = Math.min(gridWidth, rawRight)
-          const clampedBottom = Math.min(gridHeight, rawBottom)
-
-          const visibleWidth = clampedRight - clampedLeft
-          const visibleHeight = clampedBottom - clampedTop
-          if (visibleWidth <= 0 || visibleHeight <= 0) return null
-
-          return (
-            <Box
-              sx={{
-                position: 'absolute',
-                left: clampedLeft,
-                top: clampedTop,
-                width: visibleWidth,
-                height: visibleHeight,
-                backgroundColor: 'rgba(100, 150, 255, 0.2)',
-                border: '1px solid rgba(100, 150, 255, 0.8)',
-                pointerEvents: 'none',
-                zIndex: 20,
-              }}
-            />
-          )
-        })()}
+        style={{ display: 'block' }}
+      />
     </Box>
   )
 }
