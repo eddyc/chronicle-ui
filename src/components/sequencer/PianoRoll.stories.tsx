@@ -4,7 +4,7 @@
  * Stories for developing and testing the PianoRoll component in isolation.
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { Meta, StoryObj } from '@storybook/react'
 import { Box } from '@mui/material'
 import { PianoRoll } from './PianoRoll'
@@ -56,10 +56,11 @@ function PianoRollWithState(
 ) {
   const { initialClip = sampleClip, ...rest } = props
   const [clip, setClip] = useState<MidiClip>(initialClip)
+  const playheadBeatRef = useRef(0)
 
   return (
     <Box sx={{ width: '100%', maxWidth: 900 }}>
-      <PianoRoll clip={clip} onClipChange={setClip} height={400} {...rest} />
+      <PianoRoll clip={clip} onClipChange={setClip} playheadBeatRef={playheadBeatRef} height={400} {...rest} />
     </Box>
   )
 }
@@ -70,13 +71,21 @@ function PianoRollWithPlayhead(
 ) {
   const { initialClip = sampleClip, ...rest } = props
   const [clip, setClip] = useState<MidiClip>(initialClip)
-  const [playhead, setPlayhead] = useState(0)
+  const playheadBeatRef = useRef(0)
+  const [displayBeat, setDisplayBeat] = useState(0)
   const [isPlaying, setIsPlaying] = useState(true)
 
   useEffect(() => {
     if (!isPlaying) return
+    let lastDisplayUpdate = 0
     const interval = setInterval(() => {
-      setPlayhead((prev) => (prev + 0.05) % clip.length)
+      playheadBeatRef.current = (playheadBeatRef.current + 0.05) % clip.length
+      // Throttle display updates
+      const now = Date.now()
+      if (now - lastDisplayUpdate > 100) {
+        setDisplayBeat(playheadBeatRef.current)
+        lastDisplayUpdate = now
+      }
     }, 50)
     return () => clearInterval(interval)
   }, [isPlaying, clip.length])
@@ -87,12 +96,13 @@ function PianoRollWithPlayhead(
         <button onClick={() => setIsPlaying(!isPlaying)}>
           {isPlaying ? 'Pause' : 'Play'}
         </button>
-        <span>Beat: {playhead.toFixed(2)}</span>
+        <span>Beat: {displayBeat.toFixed(2)}</span>
       </Box>
       <PianoRoll
         clip={clip}
         onClipChange={setClip}
-        playheadBeat={playhead}
+        playheadBeatRef={playheadBeatRef}
+        isPlaying={isPlaying}
         height={400}
         {...rest}
       />
@@ -144,6 +154,7 @@ export const Selection: Story = {
   render: () => {
     const [selection, setSelection] = useState<Set<string>>(new Set(['n1', 'n3']))
     const [clip, setClip] = useState<MidiClip>(sampleClip)
+    const playheadBeatRef = useRef(0)
 
     return (
       <Box sx={{ width: '100%', maxWidth: 900 }}>
@@ -153,6 +164,7 @@ export const Selection: Story = {
         <PianoRoll
           clip={clip}
           onClipChange={setClip}
+          playheadBeatRef={playheadBeatRef}
           selectedNoteIds={selection}
           onSelectionChange={setSelection}
           height={400}
@@ -271,7 +283,8 @@ export const LoopWithPlayhead: Story = {
         { id: 'n4', pitch: 72, startBeat: 10, duration: 2, velocity: 0.6 },
       ],
     })
-    const [playhead, setPlayhead] = useState(clip.loopStart ?? 0)
+    const playheadBeatRef = useRef(clip.loopStart ?? 0)
+    const [displayBeat, setDisplayBeat] = useState(clip.loopStart ?? 0)
     const [isPlaying, setIsPlaying] = useState(true)
 
     const loopStart = clip.loopStart ?? 0
@@ -279,13 +292,18 @@ export const LoopWithPlayhead: Story = {
 
     useEffect(() => {
       if (!isPlaying) return
+      let lastDisplayUpdate = 0
       const interval = setInterval(() => {
-        setPlayhead((prev) => {
-          const next = prev + 0.05
-          // Loop back to loopStart when we reach loopEnd
-          if (next >= loopEnd) return loopStart
-          return next
-        })
+        let next = playheadBeatRef.current + 0.05
+        // Loop back to loopStart when we reach loopEnd
+        if (next >= loopEnd) next = loopStart
+        playheadBeatRef.current = next
+        // Throttle display updates
+        const now = Date.now()
+        if (now - lastDisplayUpdate > 100) {
+          setDisplayBeat(next)
+          lastDisplayUpdate = now
+        }
       }, 50)
       return () => clearInterval(interval)
     }, [isPlaying, loopStart, loopEnd])
@@ -296,13 +314,14 @@ export const LoopWithPlayhead: Story = {
           <button onClick={() => setIsPlaying(!isPlaying)}>
             {isPlaying ? 'Pause' : 'Play'}
           </button>
-          <span>Beat: {playhead.toFixed(2)}</span>
+          <span>Beat: {displayBeat.toFixed(2)}</span>
           <span>Loop: {loopStart.toFixed(1)} - {loopEnd.toFixed(1)}</span>
         </Box>
         <PianoRoll
           clip={clip}
           onClipChange={setClip}
-          playheadBeat={playhead}
+          playheadBeatRef={playheadBeatRef}
+          isPlaying={isPlaying}
           height={400}
           visibleBeats={16}
         />

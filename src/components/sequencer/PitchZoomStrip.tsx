@@ -11,7 +11,7 @@
  */
 
 import { Box } from '@mui/material'
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import * as d3 from 'd3'
 import { useChronicleTheme } from '../../hooks'
 import type { ViewportState } from '../../hooks'
@@ -61,19 +61,22 @@ export function PitchZoomStrip({
   const viewportRef = useRef({ viewport, gridHeight, noteRange })
   viewportRef.current = { viewport, gridHeight, noteRange }
 
-  // Generate octave markers (C notes)
-  const octaveMarkers: Array<{ pitch: number; label: string; y: number }> = []
-  for (let pitch = 0; pitch <= 127; pitch += 12) {
-    const y = pitchToY(pitch)
-    // Only include if at least partially visible
-    if (y + noteHeight >= 0 && y <= gridHeight) {
-      octaveMarkers.push({
-        pitch,
-        label: midiToNoteName(pitch),
-        y,
-      })
+  // Generate octave markers (C notes) - memoized to prevent recalculation on every render
+  const octaveMarkers = useMemo(() => {
+    const markers: Array<{ pitch: number; label: string; y: number }> = []
+    for (let pitch = 0; pitch <= 127; pitch += 12) {
+      const y = pitchToY(pitch)
+      // Use consistent culling: visible if any part is in viewport
+      if (y >= -noteHeight && y <= gridHeight) {
+        markers.push({
+          pitch,
+          label: midiToNoteName(pitch),
+          y,
+        })
+      }
     }
-  }
+    return markers
+  }, [pitchToY, noteHeight, gridHeight])
 
   // Set up D3 drag for unified mouse + touch support
   useEffect(() => {

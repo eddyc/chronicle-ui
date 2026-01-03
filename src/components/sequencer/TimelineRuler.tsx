@@ -10,8 +10,8 @@ import { Box } from '@mui/material'
 import { useRef, useCallback, useState } from 'react'
 import { useChronicleTheme } from '../../hooks'
 
-const RULER_HEIGHT = 24
-const LOOP_HANDLE_WIDTH = 8
+const RULER_HEIGHT = 32
+const LOOP_HANDLE_WIDTH = 6
 
 export interface TimelineRulerProps {
   /** First visible beat */
@@ -40,7 +40,7 @@ export interface TimelineRulerProps {
   xToBeat?: (x: number) => number
 }
 
-type DragHandle = 'start' | 'end' | null
+type DragHandle = 'start' | 'end' | 'bar' | null
 
 export function TimelineRuler({
   startBeat,
@@ -149,6 +149,58 @@ export function TimelineRuler({
     [pixelToBeat, loopStart, onLoopEndChange, onClipLengthChange]
   )
 
+  // Handle loop bar drag (move entire region)
+  const handleLoopBarMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (!rulerRef.current || !onLoopStartChange || !onLoopEndChange) return
+
+      setDraggingHandle('bar')
+
+      // Capture initial state
+      const startMouseX = e.clientX
+      const initialLoopStart = loopStart
+      const initialLoopEnd = effectiveLoopEnd
+      const loopLength = initialLoopEnd - initialLoopStart
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        if (!rulerRef.current) return
+        const rect = rulerRef.current.getBoundingClientRect()
+        const deltaX = moveEvent.clientX - startMouseX
+        const visibleBeats = endBeat - startBeat
+        const deltaBeat = (deltaX / width) * visibleBeats
+
+        // Calculate new positions
+        let newStart = initialLoopStart + deltaBeat
+        let newEnd = newStart + loopLength
+
+        // Clamp to valid range (minimum 0)
+        if (newStart < 0) {
+          newStart = 0
+          newEnd = loopLength
+        }
+
+        // Snap to grid (1/4 note)
+        newStart = Math.round(newStart * 4) / 4
+        newEnd = Math.round(newEnd * 4) / 4
+
+        onLoopStartChange(newStart)
+        onLoopEndChange(newEnd)
+      }
+
+      const cleanup = () => {
+        setDraggingHandle(null)
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', cleanup)
+      }
+
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', cleanup)
+    },
+    [loopStart, effectiveLoopEnd, startBeat, endBeat, width, onLoopStartChange, onLoopEndChange]
+  )
+
   // Calculate beat markers with adaptive density
   const visibleBeats = endBeat - startBeat
   const pixelsPerBeat = width / visibleBeats
@@ -232,7 +284,7 @@ export function TimelineRuler({
       {markers.map(({ beat, level, label }) => {
         const x = ((beat - startBeat) / visibleBeats) * width
         const tickHeight =
-          level === 'bar' ? 12 : level === 'beat' ? 8 : level === 'subbeat' ? 5 : 3
+          level === 'bar' ? 14 : level === 'beat' ? 10 : level === 'subbeat' ? 6 : 4
         const tickOpacity = level === 'fine' ? 0.4 : level === 'subbeat' ? 0.6 : 1
         return (
           <Box
@@ -247,7 +299,7 @@ export function TimelineRuler({
               alignItems: 'flex-start',
             }}
           >
-            {/* Tick mark */}
+            {/* Tick mark - positioned at bottom */}
             <Box
               sx={{
                 position: 'absolute',
@@ -259,12 +311,12 @@ export function TimelineRuler({
                 opacity: tickOpacity,
               }}
             />
-            {/* Label */}
+            {/* Label - positioned below the loop bar */}
             {label && (
               <Box
                 sx={{
                   position: 'absolute',
-                  top: 2,
+                  top: 10,
                   left: 4,
                   fontSize: '0.65rem',
                   color: semantic.text.secondary,
@@ -278,126 +330,59 @@ export function TimelineRuler({
         )
       })}
 
-      {/* Loop region indicator with draggable handles (Ableton-style) */}
+      {/* Loop region indicator with draggable handles */}
       {loopVisible && (
         <>
-          {/* Loop region bar - thick colored band */}
-          <Box
-            sx={{
-              position: 'absolute',
-              left: Math.max(0, loopStartX),
-              top: 0,
-              width: Math.min(width - Math.max(0, loopStartX), loopEndX - Math.max(0, loopStartX)),
-              height: 10,
-              backgroundColor: semantic.accent.primary,
-              opacity: 0.7,
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Draggable loop START handle - triangle pointing right ▷ */}
-          {canEditLoopStart && loopStartX >= -LOOP_HANDLE_WIDTH && loopStartX <= width && (
+          {/* Resize handles rendered FIRST (behind bar) */}
+          {/* START handle - only responds to clicks OUTSIDE the bar */}
+          {canEditLoopStart && loopStartX >= 0 && loopStartX <= width && (
             <Box
               onMouseDown={handleLoopStartMouseDown}
               sx={{
                 position: 'absolute',
                 left: loopStartX - LOOP_HANDLE_WIDTH,
                 top: 0,
-                width: LOOP_HANDLE_WIDTH * 2,
-                height: '100%',
+                width: LOOP_HANDLE_WIDTH,
+                height: 8,
                 cursor: 'ew-resize',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-end',
                 zIndex: 10,
-                '&:hover': {
-                  '& .loop-handle-triangle': {
-                    borderLeftColor: semantic.accent.primary,
-                  },
-                  '& .loop-handle-flag': {
-                    backgroundColor: semantic.accent.primary,
-                  },
-                },
               }}
-            >
-              {/* Triangle pointing right */}
-              <Box
-                className="loop-handle-triangle"
-                sx={{
-                  width: 0,
-                  height: 0,
-                  borderTop: '5px solid transparent',
-                  borderBottom: '5px solid transparent',
-                  borderLeft: `8px solid ${draggingHandle === 'start' ? semantic.accent.primary : semantic.accent.primaryMuted}`,
-                  transition: 'border-color 0.1s',
-                  mr: '8px',
-                }}
-              />
-              {/* Vertical flag/bracket line */}
-              <Box
-                className="loop-handle-flag"
-                sx={{
-                  width: 2,
-                  flex: 1,
-                  backgroundColor: draggingHandle === 'start' ? semantic.accent.primary : semantic.accent.primaryMuted,
-                  transition: 'background-color 0.1s',
-                  mr: '8px',
-                }}
-              />
-            </Box>
+            />
           )}
 
-          {/* Draggable loop END handle - triangle pointing left ◁ */}
-          {canEditLoopEnd && loopEndX > 0 && loopEndX <= width + LOOP_HANDLE_WIDTH && (
+          {/* END handle - only responds to clicks OUTSIDE the bar */}
+          {canEditLoopEnd && loopEndX > 0 && loopEndX <= width && (
             <Box
               onMouseDown={handleLoopEndMouseDown}
               sx={{
                 position: 'absolute',
-                left: loopEndX - LOOP_HANDLE_WIDTH,
+                left: loopEndX,
                 top: 0,
-                width: LOOP_HANDLE_WIDTH * 2,
-                height: '100%',
+                width: LOOP_HANDLE_WIDTH,
+                height: 8,
                 cursor: 'ew-resize',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
                 zIndex: 10,
-                '&:hover': {
-                  '& .loop-handle-triangle': {
-                    borderRightColor: semantic.accent.primary,
-                  },
-                  '& .loop-handle-flag': {
-                    backgroundColor: semantic.accent.primary,
-                  },
-                },
               }}
-            >
-              {/* Triangle pointing left */}
-              <Box
-                className="loop-handle-triangle"
-                sx={{
-                  width: 0,
-                  height: 0,
-                  borderTop: '5px solid transparent',
-                  borderBottom: '5px solid transparent',
-                  borderRight: `8px solid ${draggingHandle === 'end' ? semantic.accent.primary : semantic.accent.primaryMuted}`,
-                  transition: 'border-color 0.1s',
-                  ml: '8px',
-                }}
-              />
-              {/* Vertical flag/bracket line */}
-              <Box
-                className="loop-handle-flag"
-                sx={{
-                  width: 2,
-                  flex: 1,
-                  backgroundColor: draggingHandle === 'end' ? semantic.accent.primary : semantic.accent.primaryMuted,
-                  transition: 'background-color 0.1s',
-                  ml: '8px',
-                }}
-              />
-            </Box>
+            />
           )}
+
+          {/* Loop bar rendered LAST (on top) - receives clicks in the middle */}
+          <Box
+            onMouseDown={canEditLoopStart && canEditLoopEnd ? handleLoopBarMouseDown : undefined}
+            sx={{
+              position: 'absolute',
+              left: Math.max(0, loopStartX),
+              top: 0,
+              width: Math.max(0, Math.min(width, loopEndX) - Math.max(0, loopStartX)),
+              height: 8,
+              backgroundColor: semantic.accent.primary,
+              cursor: canEditLoopStart && canEditLoopEnd ? 'grab' : 'default',
+              zIndex: 20,
+              '&:active': {
+                cursor: 'grabbing',
+              },
+            }}
+          />
         </>
       )}
     </Box>

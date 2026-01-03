@@ -86,10 +86,17 @@ export function useD3Brush(options: UseD3BrushOptions): UseD3BrushResult {
     const svgSelection = d3.select(svg)
     const { gridWidth, gridHeight } = scalesRef.current
 
-    // Get or create brush group
+    // Get or create brush group - MUST be positioned BEFORE notes group
+    // so that notes render on top and receive pointer events first
     let brushGroup = svgSelection.select<SVGGElement>('g.brush')
     if (brushGroup.empty()) {
-      brushGroup = svgSelection.append('g').attr('class', 'brush')
+      // Insert before notes group if it exists, otherwise append
+      const notesGroup = svg.querySelector('g.notes')
+      if (notesGroup) {
+        brushGroup = svgSelection.insert('g', 'g.notes').attr('class', 'brush')
+      } else {
+        brushGroup = svgSelection.append('g').attr('class', 'brush')
+      }
     }
 
     // Track if we're actively brushing
@@ -162,6 +169,23 @@ export function useD3Brush(options: UseD3BrushOptions): UseD3BrushResult {
 
     // Hide the brush handles (we don't need resize handles)
     brushGroup.selectAll('.handle').attr('display', 'none')
+
+    // CRITICAL: Make brush overlay not intercept events on notes
+    // The overlay captures ALL pointer events by default, even when filter returns false.
+    // We need to let events pass through to notes rendered on top.
+    // Solution: Move brush group to be BEFORE notes in DOM order (already done above)
+    // AND ensure the overlay doesn't block events with pointer-events CSS.
+    // D3's filter only controls whether brush initiates, not event propagation.
+    brushGroup.select('.overlay').style('pointer-events', 'all')
+
+    // Since we can't easily make overlay pass-through, ensure brush group is positioned correctly
+    // Re-insert before notes if needed (handles cases where effects re-run out of order)
+    const notesGroup = svg.querySelector('g.notes')
+    const brushGroupEl = svg.querySelector('g.brush')
+    if (notesGroup && brushGroupEl && notesGroup.compareDocumentPosition(brushGroupEl) & Node.DOCUMENT_POSITION_FOLLOWING) {
+      // Brush is after notes, move it before
+      svg.insertBefore(brushGroupEl, notesGroup)
+    }
 
     return () => {
       brushGroup.remove()

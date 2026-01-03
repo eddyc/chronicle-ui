@@ -1,13 +1,14 @@
 /**
- * useD3Zoom - D3 zoom behavior for PianoRoll viewport
+ * useD3Zoom - Viewport pan/zoom behavior for PianoRoll
  *
  * Provides:
- * - Pinch-to-zoom on touch devices
- * - Ctrl+wheel zoom on desktop
- * - Two-finger pan on trackpad
- * - Single-finger pan on touch (when not over notes)
+ * - Two-finger scroll = PAN (trackpad or touch)
+ * - Pinch = ZOOM (touch devices)
+ * - Ctrl+wheel = ZOOM (desktop)
+ * - Middle mouse drag = PAN (desktop)
  *
- * Uses D3-zoom for unified mouse + touch support.
+ * Key behavior: Two-finger scroll on trackpad pans WITHOUT zooming.
+ * This matches DAW conventions (Logic, Ableton, etc.)
  */
 
 import * as d3 from 'd3'
@@ -54,119 +55,144 @@ export function useD3Zoom(options: UseD3ZoomOptions): void {
     const container = containerRef.current
     if (!container) return
 
-    // Track the zoom transform separately from viewport state
-    // D3 zoom manages its own transform, we translate it to viewport updates
-    let lastTransform = d3.zoomIdentity
+    // ========== WHEEL HANDLER (Trackpad/Mouse) ==========
+    // Two-finger scroll = pan, Ctrl+wheel = zoom
+    const handleWheel = (e: Event) => {
+      const event = e as WheelEvent
+      event.preventDefault()
+
+      const { gridWidth, gridHeight, viewport } = optionsRef.current
+      const visibleBeats = viewport.endBeat - viewport.startBeat
+      const visibleNotes = viewport.highNote - viewport.lowNote
+
+      // Ctrl+wheel = zoom
+      if (event.ctrlKey || event.metaKey) {
+        const rect = container.getBoundingClientRect()
+        const localX = event.clientX - rect.left
+        const localY = event.clientY - rect.top
+
+        const anchorRatioX = Math.max(0, Math.min(1, localX / gridWidth))
+        const anchorRatioY = Math.max(0, Math.min(1, localY / gridHeight))
+
+        const anchorBeat = viewport.startBeat + anchorRatioX * visibleBeats
+        const anchorPitch = viewport.highNote - anchorRatioY * visibleNotes
+
+        // Wheel deltaY: positive = scroll down = zoom out
+        // Zoom factor > 1 = zoom out, < 1 = zoom in
+        const zoomFactor = 1 + event.deltaY * 0.002
+
+        panZoomTime(anchorBeat, anchorRatioX, zoomFactor)
+        panZoomPitch(anchorPitch, anchorRatioY, zoomFactor)
+      } else {
+        // Regular scroll = pan
+        const beatsPerPixel = visibleBeats / gridWidth
+        const notesPerPixel = visibleNotes / gridHeight
+
+        // deltaX: positive = scroll right = move viewport right (later beats)
+        if (Math.abs(event.deltaX) > 0.5) {
+          panTime(event.deltaX * beatsPerPixel)
+        }
+
+        // deltaY: positive = scroll down = move viewport down (lower pitches)
+        if (Math.abs(event.deltaY) > 0.5) {
+          panPitch(-event.deltaY * notesPerPixel)
+        }
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+
+    // ========== TOUCH HANDLER (Pinch-to-zoom + Two-finger pan) ==========
+    // Use D3 zoom only for touch gestures
+    let lastTouchDistance = 0
+    let lastTouchCenter = { x: 0, y: 0 }
 
     const zoom = d3
       .zoom<SVGSVGElement | HTMLDivElement, unknown>()
-      // Allow zoom from 0.25x to 4x (relative to initial)
       .scaleExtent([0.25, 4])
-      // Constrain pan (handled by viewport clamping)
       .filter((event: Event) => {
-        // Allow:
-        // - Wheel events (trackpad/mouse wheel)
-        // - Touch events (pinch/pan)
-        // - Mouse drag with middle button only (leave left for note interaction)
-        const mouseEvent = event as MouseEvent
-        const touchEvent = event as TouchEvent
-
-        // Wheel is always allowed (trackpad two-finger, mouse wheel)
-        if (event.type === 'wheel') return true
-
-        // Touch events allowed (pinch-to-zoom, two-finger pan)
+        // Only handle touch events with 2+ fingers
         if (event.type.startsWith('touch')) {
-          // Only allow multi-touch (pinch/two-finger pan)
-          // Single touch should be handled by note drag
+          const touchEvent = event as TouchEvent
           return touchEvent.touches?.length >= 2
         }
-
-        // Mouse: only middle button drag for pan
-        // Left button is for note selection/drag
+        // Middle mouse button for pan
         if (event.type === 'mousedown') {
-          return mouseEvent.button === 1 // Middle button
+          return (event as MouseEvent).button === 1
         }
-
+        // Block wheel events (handled separately above)
+        if (event.type === 'wheel') return false
         return false
       })
       .on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement | HTMLDivElement, unknown>) => {
         const { gridWidth, gridHeight, viewport } = optionsRef.current
-        const transform = event.transform
+        const sourceEvent = event.sourceEvent as TouchEvent | MouseEvent
 
-        // Calculate deltas from last transform
-        const scaleRatio = transform.k / lastTransform.k
-        const deltaX = transform.x - lastTransform.x * scaleRatio
-        const deltaY = transform.y - lastTransform.y * scaleRatio
+        // Handle touch pinch/pan
+        if ('touches' in sourceEvent && sourceEvent.touches.length >= 2) {
+          const touches = sourceEvent.touches
+          const t1 = touches[0]
+          const t2 = touches[1]
 
-        // Get cursor position for anchor
-        const sourceEvent = event.sourceEvent as MouseEvent | TouchEvent | WheelEvent
-        let clientX = 0
-        let clientY = 0
+          // Calculate center and distance between touches
+          const centerX = (t1.clientX + t2.clientX) / 2
+          const centerY = (t1.clientY + t2.clientY) / 2
+          const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
 
-        if (sourceEvent) {
-          if ('touches' in sourceEvent && sourceEvent.touches.length > 0) {
-            // Touch: use center of touches
-            const touches = sourceEvent.touches
-            clientX = Array.from(touches).reduce((sum, t) => sum + t.clientX, 0) / touches.length
-            clientY = Array.from(touches).reduce((sum, t) => sum + t.clientY, 0) / touches.length
-          } else if ('clientX' in sourceEvent) {
-            clientX = sourceEvent.clientX
-            clientY = sourceEvent.clientY
-          }
-        }
+          const rect = container.getBoundingClientRect()
+          const localX = centerX - rect.left
+          const localY = centerY - rect.top
 
-        const rect = container.getBoundingClientRect()
-        const localX = clientX - rect.left
-        const localY = clientY - rect.top
+          const visibleBeats = viewport.endBeat - viewport.startBeat
+          const visibleNotes = viewport.highNote - viewport.lowNote
 
-        // Calculate anchor position as ratio (0-1)
-        const anchorRatioX = Math.max(0, Math.min(1, localX / gridWidth))
-        const anchorRatioY = Math.max(0, Math.min(1, localY / gridHeight))
+          // Handle pinch zoom
+          if (lastTouchDistance > 0 && Math.abs(distance - lastTouchDistance) > 2) {
+            const anchorRatioX = Math.max(0, Math.min(1, localX / gridWidth))
+            const anchorRatioY = Math.max(0, Math.min(1, localY / gridHeight))
+            const anchorBeat = viewport.startBeat + anchorRatioX * visibleBeats
+            const anchorPitch = viewport.highNote - anchorRatioY * visibleNotes
 
-        // Calculate anchor beat and pitch
-        const visibleBeats = viewport.endBeat - viewport.startBeat
-        const visibleNotes = viewport.highNote - viewport.lowNote
-        const anchorBeat = viewport.startBeat + anchorRatioX * visibleBeats
-        const anchorPitch = viewport.highNote - anchorRatioY * visibleNotes
-
-        // Handle zoom (scale changed)
-        if (Math.abs(scaleRatio - 1) > 0.001) {
-          // Zoom factor: D3 scale increase = zoom in = smaller viewport = factor < 1
-          const zoomFactor = 1 / scaleRatio
-
-          // Apply zoom to both axes
-          panZoomTime(anchorBeat, anchorRatioX, zoomFactor)
-          panZoomPitch(anchorPitch, anchorRatioY, zoomFactor)
-        }
-
-        // Handle pan (translation changed)
-        if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
-          // Convert pixel delta to beat/note delta
-          const beatsPerPixel = visibleBeats / gridWidth
-          const notesPerPixel = visibleNotes / gridHeight
-
-          // Pan: negative deltaX = scroll right = later in time
-          if (Math.abs(deltaX) > 0.5) {
-            panTime(-deltaX * beatsPerPixel)
+            const zoomFactor = lastTouchDistance / distance
+            panZoomTime(anchorBeat, anchorRatioX, zoomFactor)
+            panZoomPitch(anchorPitch, anchorRatioY, zoomFactor)
           }
 
-          // Pan: negative deltaY = scroll down = lower notes
-          if (Math.abs(deltaY) > 0.5) {
-            panPitch(deltaY * notesPerPixel)
-          }
-        }
+          // Handle two-finger pan
+          if (lastTouchCenter.x !== 0 || lastTouchCenter.y !== 0) {
+            const deltaX = centerX - lastTouchCenter.x
+            const deltaY = centerY - lastTouchCenter.y
 
-        lastTransform = transform
+            const beatsPerPixel = visibleBeats / gridWidth
+            const notesPerPixel = visibleNotes / gridHeight
+
+            if (Math.abs(deltaX) > 1) {
+              panTime(-deltaX * beatsPerPixel)
+            }
+            if (Math.abs(deltaY) > 1) {
+              panPitch(deltaY * notesPerPixel)
+            }
+          }
+
+          lastTouchDistance = distance
+          lastTouchCenter = { x: centerX, y: centerY }
+        }
+      })
+      .on('end', () => {
+        // Reset touch tracking
+        lastTouchDistance = 0
+        lastTouchCenter = { x: 0, y: 0 }
       })
 
-    // Apply zoom behavior
+    // Apply D3 zoom for touch only
     const selection = d3.select(container as SVGSVGElement | HTMLDivElement)
     selection.call(zoom)
 
-    // Disable default double-click zoom (we use double-click for note creation)
+    // Disable double-click zoom (we use double-click for note creation)
     selection.on('dblclick.zoom', null)
 
     return () => {
+      container.removeEventListener('wheel', handleWheel)
       selection.on('.zoom', null)
     }
   }, [containerRef, panZoomTime, panZoomPitch, panTime, panPitch])

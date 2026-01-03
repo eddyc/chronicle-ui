@@ -12,10 +12,15 @@
  *
  * @example
  * ```tsx
+ * const playheadBeatRef = useRef(0)
+ * // Update ref directly for smooth animation (no React re-renders)
+ * transport.onPlayheadData((data) => { playheadBeatRef.current = data.beat })
+ *
  * <PianoRoll
  *   clip={clip}
  *   onClipChange={setClip}
- *   playheadBeat={playheadBeat}
+ *   playheadBeatRef={playheadBeatRef}
+ *   isPlaying={isPlaying}
  *   onNotePreview={(pitch, vel) => noteOn(pitch, vel)}
  *   onNotePreviewEnd={(pitch) => noteOff(pitch)}
  * />
@@ -47,8 +52,10 @@ export interface PianoRollProps {
   clip: MidiClip
   /** Callback when clip changes */
   onClipChange: (clip: MidiClip) => void
-  /** Current playhead position in beats */
-  playheadBeat?: number
+  /** Ref containing current playhead position (updated externally without re-renders) */
+  playheadBeatRef: React.MutableRefObject<number>
+  /** Whether sequencer is currently playing (controls RAF animation) */
+  isPlaying?: boolean
   /** Number of beats visible in the viewport */
   visibleBeats?: number
   /** Snap grid size in beats (e.g., 0.25 = 1/16th note) */
@@ -71,14 +78,15 @@ export interface PianoRollProps {
 
 // ============ Constants ============
 
-const RULER_HEIGHT = 24
+const RULER_HEIGHT = 32
 
 // ============ Component ============
 
 export function PianoRoll({
   clip,
   onClipChange,
-  playheadBeat = 0,
+  playheadBeatRef,
+  isPlaying = false,
   visibleBeats = DEFAULT_VISIBLE_BEATS,
   snapToBeat = DEFAULT_SNAP_TO_BEAT,
   lowNote = DEFAULT_LOW_NOTE,
@@ -214,18 +222,61 @@ export function PianoRoll({
             borderBottom: `1px solid ${semantic.border.default}`,
           }}
         />
-        {/* Timeline ruler (no zoom, just tick marks) */}
-        <TimelineRuler
-          startBeat={viewport.startBeat}
-          endBeat={viewport.endBeat}
-          width={gridWidth}
-          loopStart={clip.loopStart ?? 0}
-          loopEnd={clip.loopEnd ?? clip.length}
-          onLoopStartChange={handleLoopStartChange}
-          onLoopEndChange={handleLoopEndChange}
-          clipLength={clip.length}
-          xToBeat={scales.xToBeat}
-        />
+        {/* Timeline ruler (no zoom, just tick marks) - wrapped with loop lines overlay */}
+        <Box sx={{ position: 'relative', width: gridWidth }}>
+          <TimelineRuler
+            startBeat={viewport.startBeat}
+            endBeat={viewport.endBeat}
+            width={gridWidth}
+            loopStart={clip.loopStart ?? 0}
+            loopEnd={clip.loopEnd ?? clip.length}
+            onLoopStartChange={handleLoopStartChange}
+            onLoopEndChange={handleLoopEndChange}
+            clipLength={clip.length}
+            xToBeat={scales.xToBeat}
+          />
+          {/* Loop boundary lines - extend from ruler through entire grid */}
+          {(() => {
+            const loopStart = clip.loopStart ?? 0
+            const loopEnd = clip.loopEnd ?? clip.length
+            const visibleBeats = viewport.endBeat - viewport.startBeat
+            const startX = ((loopStart - viewport.startBeat) / visibleBeats) * gridWidth
+            const endX = ((loopEnd - viewport.startBeat) / visibleBeats) * gridWidth
+            const totalHeight = RULER_HEIGHT + gridHeight
+            return (
+              <>
+                {startX >= 0 && startX <= gridWidth && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      left: startX,
+                      top: 0,
+                      width: '1px',
+                      height: totalHeight,
+                      backgroundColor: semantic.accent.primary,
+                      pointerEvents: 'none',
+                      zIndex: 30,
+                    }}
+                  />
+                )}
+                {endX >= 0 && endX <= gridWidth && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      left: endX,
+                      top: 0,
+                      width: '1px',
+                      height: totalHeight,
+                      backgroundColor: semantic.accent.primary,
+                      pointerEvents: 'none',
+                      zIndex: 30,
+                    }}
+                  />
+                )}
+              </>
+            )
+          })()}
+        </Box>
       </Box>
 
       {/* Row 3: Main content (pitch zoom + keys + grid) */}
@@ -263,7 +314,8 @@ export function PianoRoll({
           snapToBeat={snapToBeat}
           selection={selection}
           onSelectionChange={setSelection}
-          playheadBeat={playheadBeat}
+          playheadBeatRef={playheadBeatRef}
+          isPlaying={isPlaying}
           panZoomTime={panZoomTime}
           panZoomPitch={panZoomPitch}
           panTime={panTime}

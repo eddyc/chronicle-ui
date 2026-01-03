@@ -1,22 +1,20 @@
 /**
  * PianoKeyboard - Piano keys column for PianoRoll
  *
- * Renders the piano keyboard on the left side of the piano roll.
+ * Renders the piano keyboard on the left side of the piano roll using SVG.
+ * Uses D3 for rendering to stay in sync with the grid (same render pipeline).
  * Supports:
  * - Click to preview notes
  * - Hover to show note in PitchZoomStrip
  */
 
 import { Box } from '@mui/material'
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useMemo } from 'react'
 import { useChronicleTheme } from '../../hooks'
 import type { ViewportState } from '../../hooks'
-import {
-  isBlackKey,
-  KEY_WIDTH,
-  DEFAULT_VELOCITY,
-  generatePitchRows,
-} from './utils/pianoRollHelpers'
+import type { PianoRollScales } from './hooks/usePianoRollScales'
+import { useD3PianoKeys } from './d3'
+import { KEY_WIDTH } from './utils/pianoRollHelpers'
 
 // ============ Types ============
 
@@ -39,14 +37,6 @@ export interface PianoKeyboardProps {
   onNotePreviewEnd?: (pitch: number) => void
 }
 
-// ============ Constants ============
-
-const ALL_PITCH_ROWS = generatePitchRows()
-
-// Piano key colors - always consistent
-const WHITE_KEY_COLOR = '#F5F5F0' // Creamy white
-const BLACK_KEY_COLOR = '#1A1A1A' // Dark black
-
 // ============ Component ============
 
 export function PianoKeyboard({
@@ -60,40 +50,46 @@ export function PianoKeyboard({
   onNotePreviewEnd,
 }: PianoKeyboardProps) {
   const { semantic } = useChronicleTheme()
-  const containerRef = useRef<HTMLDivElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
 
-  // Preview state for piano keys (playing note)
-  const [previewPitch, setPreviewPitch] = useState<number | null>(null)
-
-  // Handle mouse down - start note preview
-  const handleKeyMouseDown = useCallback(
-    (pitch: number) => {
-      setPreviewPitch(pitch)
-      onNotePreview?.(pitch, DEFAULT_VELOCITY)
-    },
-    [onNotePreview]
+  // Create scales object for D3 hook (matching PianoRollScales interface)
+  const scales: PianoRollScales = useMemo(
+    () => ({
+      gridWidth: KEY_WIDTH,
+      gridHeight,
+      noteHeight,
+      pitchToY,
+      // These aren't used by piano keys but required by the type
+      xScale: null as never,
+      yScale: null as never,
+      beatToX: () => 0,
+      xToBeat: () => 0,
+      yToPitch: () => 0,
+    }),
+    [gridHeight, noteHeight, pitchToY]
   )
 
-  // Handle mouse up - end note preview
-  const handleMouseUp = useCallback(() => {
-    if (previewPitch !== null) {
-      onNotePreviewEnd?.(previewPitch)
-      setPreviewPitch(null)
-    }
-  }, [previewPitch, onNotePreviewEnd])
-
-  // Handle mouse leave - clear hover and end preview
-  const handleMouseLeave = useCallback(() => {
-    onHoverPitch(null)
-    if (previewPitch !== null) {
-      onNotePreviewEnd?.(previewPitch)
-      setPreviewPitch(null)
-    }
-  }, [onHoverPitch, previewPitch, onNotePreviewEnd])
+  // Use D3 to render piano keys (same pipeline as grid for perfect sync)
+  useD3PianoKeys({
+    svgRef,
+    scales,
+    keyWidth: KEY_WIDTH,
+    hoveredPitch,
+    onHoverPitch,
+    onNotePreview,
+    onNotePreviewEnd,
+    theme: {
+      border: {
+        subtle: semantic.border.subtle,
+      },
+      accent: {
+        primary: semantic.accent.primary,
+      },
+    },
+  })
 
   return (
     <Box
-      ref={containerRef}
       sx={{
         width: KEY_WIDTH,
         flexShrink: 0,
@@ -101,38 +97,13 @@ export function PianoKeyboard({
         overflow: 'hidden',
         position: 'relative',
       }}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
     >
-      {ALL_PITCH_ROWS.map((pitch) => {
-        const y = pitchToY(pitch)
-        // Skip rendering if completely outside visible area
-        if (y + noteHeight < 0 || y > gridHeight) return null
-
-        const isBlack = isBlackKey(pitch)
-
-        return (
-          <Box
-            key={pitch}
-            onMouseDown={() => handleKeyMouseDown(pitch)}
-            onMouseEnter={() => onHoverPitch(pitch)}
-            sx={{
-              position: 'absolute',
-              top: y,
-              left: 0,
-              right: 0,
-              height: noteHeight,
-              backgroundColor: isBlack ? BLACK_KEY_COLOR : WHITE_KEY_COLOR,
-              borderBottom: `1px solid ${semantic.border.subtle}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              paddingRight: 0.5,
-              cursor: 'pointer',
-            }}
-          />
-        )
-      })}
+      <svg
+        ref={svgRef}
+        width={KEY_WIDTH}
+        height={gridHeight}
+        style={{ display: 'block' }}
+      />
     </Box>
   )
 }

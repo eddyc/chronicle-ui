@@ -20,8 +20,9 @@ import { useD3Grid } from './d3/useD3Grid'
 import { useD3Notes } from './d3/useD3Notes'
 import { useD3NoteDrag } from './d3/useD3NoteDrag'
 import { useD3Brush } from './d3/useD3Brush'
-import { useD3Overlays } from './d3/useD3Overlays'
 import { useD3Zoom } from './d3/useD3Zoom'
+import { useD3Overlays } from './d3/useD3Overlays'
+import { usePlayheadAnimation } from './d3/usePlayheadAnimation'
 
 // ============ Types ============
 
@@ -44,8 +45,10 @@ export interface PianoRollGridProps {
   selection: Set<string>
   /** Callback when selection changes */
   onSelectionChange: (ids: Set<string>) => void
-  /** Current playhead position in beats */
-  playheadBeat: number
+  /** Ref containing current playhead position (updated externally without re-renders) */
+  playheadBeatRef: React.MutableRefObject<number>
+  /** Whether sequencer is currently playing (controls RAF animation) */
+  isPlaying: boolean
   /** Combined pan+zoom for time axis */
   panZoomTime: (anchorBeat: number, anchorRatio: number, zoomFactor: number) => void
   /** Combined pan+zoom for pitch axis */
@@ -72,7 +75,8 @@ export function PianoRollGrid({
   snapToBeat,
   selection,
   onSelectionChange,
-  playheadBeat,
+  playheadBeatRef,
+  isPlaying,
   panZoomTime,
   panZoomPitch,
   panTime,
@@ -144,17 +148,15 @@ export function PianoRollGrid({
     snapToBeat,
   })
 
-  // D3 overlays (playhead)
-  useD3Overlays({
+  // RAF-based playhead animation (bypasses React for 60fps performance)
+  usePlayheadAnimation({
     svgRef,
-    playheadBeat,
-    scales,
-    viewport,
-    theme: {
-      semantic: {
-        error: semantic.semantic.error,
-      },
-    },
+    playheadBeatRef,
+    isPlaying,
+    beatToX: scales.beatToX,
+    viewport: { startBeat: viewport.startBeat, endBeat: viewport.endBeat },
+    gridHeight,
+    color: semantic.semantic.error,
   })
 
   // D3 zoom/pan (pinch-to-zoom, wheel, trackpad gestures)
@@ -167,6 +169,23 @@ export function PianoRollGrid({
     panZoomPitch,
     panTime,
     panPitch,
+  })
+
+  // Loop region background and marker lines
+  useD3Overlays({
+    svgRef,
+    scales,
+    viewport,
+    gridWidth,
+    gridHeight,
+    loopStart,
+    loopEnd: loopEnd ?? clip.length,
+    theme: {
+      accent: {
+        primary: semantic.accent.primary,
+        primaryMuted: semantic.accent.primaryMuted,
+      },
+    },
   })
 
   // Handle delete key
