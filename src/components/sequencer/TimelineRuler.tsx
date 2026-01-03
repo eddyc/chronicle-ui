@@ -183,12 +183,24 @@ export function TimelineRuler({
 
       const level = isBar ? 'bar' : isBeat ? 'beat' : isSubbeat ? 'subbeat' : 'fine'
 
-      // Labels: bars always, beats when zoomed enough
+      // Minimum pixels needed for a label (accounts for text width)
+      const MIN_LABEL_SPACING = 35
+
+      // Labels: bars always, beats when there's room (1 beat apart),
+      // subbeats when very zoomed (0.25 beats apart)
       let label: string | undefined
       if (isBar) {
+        // Bar labels always show
         label = `${bar}`
-      } else if (isBeat && pixelsPerBeat > 40) {
-        label = `${bar}.${beatInBar}`
+      } else if (isBeat && !isBar && pixelsPerBeat >= MIN_LABEL_SPACING) {
+        // Beat labels: spacing is 1 beat = pixelsPerBeat
+        label = `${bar}.${Math.floor(beatInBar)}`
+      } else if (isSubbeat && !isBeat && pixelsPerBeat / 4 >= MIN_LABEL_SPACING) {
+        // Subbeat labels: spacing is 0.25 beats = pixelsPerBeat / 4
+        const wholeBeat = Math.floor(beat)
+        const beatInBarWhole = (wholeBeat % beatsPerBar) + 1
+        const sixteenthInBeat = Math.round((beat - wholeBeat) * 4) + 1
+        label = `${bar}.${beatInBarWhole}.${sixteenthInBeat}`
       }
 
       markers.push({ beat, level, label })
