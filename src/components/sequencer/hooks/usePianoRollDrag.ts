@@ -10,7 +10,6 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
 import type { MidiClip, MidiNote } from '@eddyc/chronicle-client'
 import {
-  snap,
   createNoteId,
   DEFAULT_VELOCITY,
   type CoordinateHelpers,
@@ -30,6 +29,8 @@ export interface DragState {
   originalNote?: MidiNote
   /** Original positions of all selected notes for multi-note move */
   originalSelectedNotes?: Map<string, { startBeat: number; pitch: number }>
+  /** Original notes for multi-note resize */
+  originalSelectedNotesForResize?: Map<string, { startBeat: number; duration: number }>
 }
 
 export interface BrushRect {
@@ -103,16 +104,6 @@ export function usePianoRollDrag(
       onClipChange({
         ...clip,
         notes: [...clip.notes, note],
-      })
-    },
-    [clip, onClipChange]
-  )
-
-  const updateNote = useCallback(
-    (noteId: string, updates: Partial<MidiNote>) => {
-      onClipChange({
-        ...clip,
-        notes: clip.notes.map((n) => (n.id === noteId ? { ...n, ...updates } : n)),
       })
     },
     [clip, onClipChange]
@@ -220,6 +211,14 @@ export function usePianoRollDrag(
         const edgeThreshold = 8
 
         if (x - noteStartX < edgeThreshold) {
+          // If clicked note is selected, resize all selected; otherwise just this note
+          const notesToResize = selection.has(clickedNote.id)
+            ? clip.notes.filter((n) => selection.has(n.id))
+            : [clickedNote]
+          const originalNotes = new Map<string, { startBeat: number; duration: number }>()
+          for (const note of notesToResize) {
+            originalNotes.set(note.id, { startBeat: note.startBeat, duration: note.duration })
+          }
           setDragState({
             type: 'resize-start',
             noteId: clickedNote.id,
@@ -228,8 +227,17 @@ export function usePianoRollDrag(
             startX: x,
             startY: y,
             originalNote: { ...clickedNote },
+            originalSelectedNotesForResize: originalNotes,
           })
         } else if (noteEndX - x < edgeThreshold) {
+          // If clicked note is selected, resize all selected; otherwise just this note
+          const notesToResize = selection.has(clickedNote.id)
+            ? clip.notes.filter((n) => selection.has(n.id))
+            : [clickedNote]
+          const originalNotes = new Map<string, { startBeat: number; duration: number }>()
+          for (const note of notesToResize) {
+            originalNotes.set(note.id, { startBeat: note.startBeat, duration: note.duration })
+          }
           setDragState({
             type: 'resize-end',
             noteId: clickedNote.id,
@@ -238,6 +246,7 @@ export function usePianoRollDrag(
             startX: x,
             startY: y,
             originalNote: { ...clickedNote },
+            originalSelectedNotesForResize: originalNotes,
           })
         } else {
           // Move note(s)
@@ -395,28 +404,41 @@ export function usePianoRollDrag(
           break
         }
         case 'resize-start': {
-          if (!dragState.originalNote) break
+          if (!dragState.originalSelectedNotesForResize) break
           const deltaBeat = beat - dragState.startBeat
-          const newStart = Math.max(0, dragState.originalNote.startBeat + deltaBeat)
-          const newDuration =
-            dragState.originalNote.startBeat + dragState.originalNote.duration - newStart
-          if (newDuration > snapToBeat) {
-            updateNote(dragState.noteId!, {
-              startBeat: newStart,
-              duration: newDuration,
-            })
-          }
+
+          onClipChange({
+            ...clip,
+            notes: clip.notes.map((n) => {
+              const original = dragState.originalSelectedNotesForResize!.get(n.id)
+              if (original) {
+                const newStart = Math.max(0, original.startBeat + deltaBeat)
+                const noteEnd = original.startBeat + original.duration
+                const newDuration = noteEnd - newStart
+                // Only apply if duration stays valid
+                if (newDuration >= snapToBeat) {
+                  return { ...n, startBeat: newStart, duration: newDuration }
+                }
+              }
+              return n
+            }),
+          })
           break
         }
         case 'resize-end': {
-          if (!dragState.originalNote) break
+          if (!dragState.originalSelectedNotesForResize) break
           const deltaBeat = beat - dragState.startBeat
-          const newDuration = Math.max(
-            snapToBeat,
-            dragState.originalNote.duration + deltaBeat
-          )
-          updateNote(dragState.noteId!, {
-            duration: newDuration,
+
+          onClipChange({
+            ...clip,
+            notes: clip.notes.map((n) => {
+              const original = dragState.originalSelectedNotesForResize!.get(n.id)
+              if (original) {
+                const newDuration = Math.max(snapToBeat, original.duration + deltaBeat)
+                return { ...n, duration: newDuration }
+              }
+              return n
+            }),
           })
           break
         }
@@ -426,7 +448,6 @@ export function usePianoRollDrag(
       dragState,
       pixelToBeat,
       pixelToPitch,
-      updateNote,
       snapToBeat,
       clip,
       onClipChange,

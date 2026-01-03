@@ -200,8 +200,8 @@ export function PianoRollGrid({
           const inTimeRange =
             noteEnd >= viewport.startBeat && note.startBeat <= viewport.endBeat
           const inPitchRange =
-            note.pitch >= Math.floor(viewport.lowNote) &&
-            note.pitch <= Math.ceil(viewport.highNote)
+            note.pitch > viewport.lowNote - 1 &&
+            note.pitch < viewport.highNote + 1
           return inTimeRange && inPitchRange
         })
         .map((note) => {
@@ -224,15 +224,12 @@ export function PianoRollGrid({
                 height: noteHeight - 1,
                 backgroundColor: shouldHighlight
                   ? semantic.accent.primary
-                  : semantic.accent.primaryMuted,
+                  : semantic.accent.primaryPressed,
                 borderRadius: 0.5,
-                border: `1px solid ${shouldHighlight ? semantic.accent.primary : semantic.border.default}`,
+                border: shouldHighlight
+                  ? `1px solid ${semantic.accent.primaryHover}`
+                  : `1px solid ${semantic.accent.primaryPressed}`,
                 cursor: dragState.type === 'none' ? 'grab' : 'grabbing',
-                opacity: note.velocity,
-                transition: 'background-color 0.1s, border-color 0.1s',
-                '&:hover': {
-                  borderColor: semantic.accent.primary,
-                },
               }}
             >
               {/* Resize handles */}
@@ -244,9 +241,6 @@ export function PianoRollGrid({
                   width: 6,
                   height: '100%',
                   cursor: 'ew-resize',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.3)',
-                  },
                 }}
               />
               <Box
@@ -257,9 +251,6 @@ export function PianoRollGrid({
                   width: 6,
                   height: '100%',
                   cursor: 'ew-resize',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.3)',
-                  },
                 }}
               />
             </Box>

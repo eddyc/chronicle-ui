@@ -111,8 +111,9 @@ export function TimelineRuler({
     label?: string
   }> = []
   const firstBeat = Math.floor(startBeat / markerStep) * markerStep
-  for (let beat = firstBeat; beat <= endBeat; beat += markerStep) {
-    if (beat >= startBeat) {
+  // Generate one extra marker beyond endBeat to prevent edge gaps
+  for (let beat = firstBeat; beat <= endBeat + markerStep; beat += markerStep) {
+    if (beat >= startBeat && beat <= endBeat + markerStep) {
       const bar = Math.floor(beat / beatsPerBar) + 1
       const beatInBar = (beat % beatsPerBar) + 1
 

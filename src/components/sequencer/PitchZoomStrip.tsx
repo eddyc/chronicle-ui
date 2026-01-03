@@ -65,8 +65,8 @@ export function PitchZoomStrip({
   const octaveMarkers: Array<{ pitch: number; label: string; y: number }> = []
   for (let pitch = 0; pitch <= 127; pitch += 12) {
     const y = pitchToY(pitch)
-    // Only include if visible
-    if (y >= -noteHeight && y <= gridHeight + noteHeight) {
+    // Only include if at least partially visible
+    if (y + noteHeight >= 0 && y <= gridHeight) {
       octaveMarkers.push({
         pitch,
         label: midiToNoteName(pitch),

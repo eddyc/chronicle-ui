@@ -111,8 +111,8 @@ export function PianoKeyboard({
     >
       {ALL_PITCH_ROWS.map((pitch) => {
         const y = pitchToY(pitch)
-        // Skip rendering if outside visible area (with some buffer)
-        if (y < -noteHeight || y > gridHeight + noteHeight) return null
+        // Skip rendering if completely outside visible area
+        if (y + noteHeight < 0 || y > gridHeight) return null
 
         const isBlack = isBlackKey(pitch)
 
