@@ -62,8 +62,8 @@ export function TimelineRuler({
   // Effective loop end (use loopEnd if provided, otherwise clipLength for backwards compat)
   const effectiveLoopEnd = loopEnd ?? clipLength ?? 4
 
-  // Loop handle drag state
-  const [draggingHandle, setDraggingHandle] = useState<DragHandle>(null)
+  // Loop handle drag state (used for cursor feedback)
+  const [, setDraggingHandle] = useState<DragHandle>(null)
 
   // Convert pixel X to beat position - use passed function or fallback to local calculation
   const pixelToBeat = useCallback(
@@ -166,7 +166,6 @@ export function TimelineRuler({
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         if (!rulerRef.current) return
-        const rect = rulerRef.current.getBoundingClientRect()
         const deltaX = moveEvent.clientX - startMouseX
         const visibleBeats = endBeat - startBeat
         const deltaBeat = (deltaX / width) * visibleBeats
@@ -333,42 +332,8 @@ export function TimelineRuler({
       {/* Loop region indicator with draggable handles */}
       {loopVisible && (
         <>
-          {/* Resize handles rendered FIRST (behind bar) */}
-          {/* START handle - only responds to clicks OUTSIDE the bar */}
-          {canEditLoopStart && loopStartX >= 0 && loopStartX <= width && (
-            <Box
-              onMouseDown={handleLoopStartMouseDown}
-              sx={{
-                position: 'absolute',
-                left: loopStartX - LOOP_HANDLE_WIDTH,
-                top: 0,
-                width: LOOP_HANDLE_WIDTH,
-                height: 8,
-                cursor: 'ew-resize',
-                zIndex: 10,
-              }}
-            />
-          )}
-
-          {/* END handle - only responds to clicks OUTSIDE the bar */}
-          {canEditLoopEnd && loopEndX > 0 && loopEndX <= width && (
-            <Box
-              onMouseDown={handleLoopEndMouseDown}
-              sx={{
-                position: 'absolute',
-                left: loopEndX,
-                top: 0,
-                width: LOOP_HANDLE_WIDTH,
-                height: 8,
-                cursor: 'ew-resize',
-                zIndex: 10,
-              }}
-            />
-          )}
-
-          {/* Loop bar rendered LAST (on top) - receives clicks in the middle */}
+          {/* Visual bar - just for display, no events */}
           <Box
-            onMouseDown={canEditLoopStart && canEditLoopEnd ? handleLoopBarMouseDown : undefined}
             sx={{
               position: 'absolute',
               left: Math.max(0, loopStartX),
@@ -376,13 +341,57 @@ export function TimelineRuler({
               width: Math.max(0, Math.min(width, loopEndX) - Math.max(0, loopStartX)),
               height: 8,
               backgroundColor: semantic.accent.primary,
-              cursor: canEditLoopStart && canEditLoopEnd ? 'grab' : 'default',
-              zIndex: 20,
-              '&:active': {
-                cursor: 'grabbing',
-              },
+              pointerEvents: 'none',
             }}
           />
+
+          {/* START resize handle */}
+          {canEditLoopStart && loopStartX >= 0 && loopStartX <= width && (
+            <Box
+              onMouseDown={handleLoopStartMouseDown}
+              sx={{
+                position: 'absolute',
+                left: loopStartX - LOOP_HANDLE_WIDTH / 2,
+                top: 0,
+                width: LOOP_HANDLE_WIDTH,
+                height: 8,
+                cursor: 'ew-resize',
+              }}
+            />
+          )}
+
+          {/* END resize handle */}
+          {canEditLoopEnd && loopEndX > 0 && loopEndX <= width && (
+            <Box
+              onMouseDown={handleLoopEndMouseDown}
+              sx={{
+                position: 'absolute',
+                left: loopEndX - LOOP_HANDLE_WIDTH / 2,
+                top: 0,
+                width: LOOP_HANDLE_WIDTH,
+                height: 8,
+                cursor: 'ew-resize',
+              }}
+            />
+          )}
+
+          {/* Draggable middle area - between handles, for moving entire region */}
+          {canEditLoopStart && canEditLoopEnd && (
+            <Box
+              onMouseDown={handleLoopBarMouseDown}
+              sx={{
+                position: 'absolute',
+                left: loopStartX + LOOP_HANDLE_WIDTH / 2,
+                top: 0,
+                width: Math.max(0, loopEndX - loopStartX - LOOP_HANDLE_WIDTH),
+                height: 8,
+                cursor: 'grab',
+                '&:active': {
+                  cursor: 'grabbing',
+                },
+              }}
+            />
+          )}
         </>
       )}
     </Box>

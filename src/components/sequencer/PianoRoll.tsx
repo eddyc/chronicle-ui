@@ -151,26 +151,45 @@ export function PianoRoll({
     snapToBeat,
   })
 
+  // Track pending loop changes for batching start+end updates
+  const pendingLoopRef = useRef<{ start?: number; end?: number }>({})
+  const flushTimeoutRef = useRef<number | null>(null)
+
+  const flushLoopChanges = useCallback(() => {
+    const pending = pendingLoopRef.current
+    if (pending.start !== undefined || pending.end !== undefined) {
+      onClipChange({
+        ...clip,
+        ...(pending.start !== undefined && { loopStart: pending.start }),
+        ...(pending.end !== undefined && { loopEnd: pending.end }),
+      })
+      pendingLoopRef.current = {}
+    }
+    flushTimeoutRef.current = null
+  }, [clip, onClipChange])
+
   // Handle loop start change
   const handleLoopStartChange = useCallback(
     (beat: number) => {
-      onClipChange({
-        ...clip,
-        loopStart: beat,
-      })
+      pendingLoopRef.current.start = beat
+      // Flush immediately if no pending timeout, or let existing timeout batch
+      if (flushTimeoutRef.current === null) {
+        flushTimeoutRef.current = requestAnimationFrame(flushLoopChanges)
+      }
     },
-    [clip, onClipChange]
+    [flushLoopChanges]
   )
 
   // Handle loop end change
   const handleLoopEndChange = useCallback(
     (beat: number) => {
-      onClipChange({
-        ...clip,
-        loopEnd: beat,
-      })
+      pendingLoopRef.current.end = beat
+      // Flush immediately if no pending timeout, or let existing timeout batch
+      if (flushTimeoutRef.current === null) {
+        flushTimeoutRef.current = requestAnimationFrame(flushLoopChanges)
+      }
     },
-    [clip, onClipChange]
+    [flushLoopChanges]
   )
 
   return (
