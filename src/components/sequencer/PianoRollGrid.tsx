@@ -48,6 +48,10 @@ export interface PianoRollGridProps {
   playheadBeat: number
   /** Callback for wheel events (pan/zoom) */
   onWheel?: (e: WheelEvent) => void
+  /** Loop start position in beats (for dimming notes outside) */
+  loopStart?: number
+  /** Loop end position in beats (for dimming notes outside) */
+  loopEnd?: number
 }
 
 // ============ Constants ============
@@ -68,6 +72,8 @@ export function PianoRollGrid({
   onSelectionChange,
   playheadBeat,
   onWheel,
+  loopStart = 0,
+  loopEnd,
 }: PianoRollGridProps) {
   const { semantic } = useChronicleTheme()
   const gridRef = useRef<HTMLDivElement>(null)
@@ -213,6 +219,12 @@ export function PianoRollGrid({
           const shouldHighlight = isSelected || isInBrushPreview
           const noteWidth = Math.max(8, width - 1)
 
+          // Check if note is outside loop region
+          const effectiveLoopEnd = loopEnd ?? clip.length
+          const noteEnd = note.startBeat + note.duration
+          const isOutsideLoop =
+            note.startBeat >= effectiveLoopEnd || noteEnd <= loopStart
+
           return (
             <Box
               key={note.id}
@@ -230,6 +242,7 @@ export function PianoRollGrid({
                   ? `1px solid ${semantic.accent.primaryHover}`
                   : `1px solid ${semantic.accent.primaryPressed}`,
                 cursor: dragState.type === 'none' ? 'grab' : 'grabbing',
+                opacity: isOutsideLoop ? 0.4 : 1,
               }}
             >
               {/* Resize handles */}

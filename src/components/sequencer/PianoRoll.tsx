@@ -136,12 +136,23 @@ export function PianoRoll({
   const gridHeight = gridContainerHeight
   const noteHeight = gridHeight / noteRange
 
-  // Handle clip length change
-  const handleClipLengthChange = useCallback(
-    (newLength: number) => {
+  // Handle loop start change
+  const handleLoopStartChange = useCallback(
+    (beat: number) => {
       onClipChange({
         ...clip,
-        length: newLength,
+        loopStart: beat,
+      })
+    },
+    [clip, onClipChange]
+  )
+
+  // Handle loop end change
+  const handleLoopEndChange = useCallback(
+    (beat: number) => {
+      onClipChange({
+        ...clip,
+        loopEnd: beat,
       })
     },
     [clip, onClipChange]
@@ -230,8 +241,11 @@ export function PianoRoll({
           startBeat={viewport.startBeat}
           endBeat={viewport.endBeat}
           width={gridWidth}
+          loopStart={clip.loopStart ?? 0}
+          loopEnd={clip.loopEnd ?? clip.length}
+          onLoopStartChange={handleLoopStartChange}
+          onLoopEndChange={handleLoopEndChange}
           clipLength={clip.length}
-          onClipLengthChange={handleClipLengthChange}
         />
       </Box>
 
@@ -270,6 +284,8 @@ export function PianoRoll({
           onSelectionChange={setSelection}
           playheadBeat={playheadBeat}
           onWheel={wheelHandler}
+          loopStart={clip.loopStart ?? 0}
+          loopEnd={clip.loopEnd ?? clip.length}
         />
       </Box>
     </Box>

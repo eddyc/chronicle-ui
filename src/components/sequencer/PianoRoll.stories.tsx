@@ -216,3 +216,97 @@ export const FineSnap: Story = {
 export const CoarseSnap: Story = {
   render: () => <PianoRollWithState snapToBeat={1} />,
 }
+
+/**
+ * Loop region controls.
+ * Test: Drag loop start/end handles in timeline ruler.
+ * Notes outside loop region are dimmed.
+ */
+export const LoopRegion: Story = {
+  render: () => (
+    <PianoRollWithState
+      initialClip={{
+        id: 'loop-clip',
+        name: 'Loop Demo',
+        length: 16,
+        loopStart: 2,
+        loopEnd: 10,
+        notes: [
+          // Notes before loop (should be dimmed)
+          { id: 'pre1', pitch: 60, startBeat: 0, duration: 1, velocity: 0.8 },
+          { id: 'pre2', pitch: 64, startBeat: 1, duration: 1, velocity: 0.7 },
+          // Notes inside loop (should be bright)
+          { id: 'in1', pitch: 67, startBeat: 2, duration: 2, velocity: 0.9 },
+          { id: 'in2', pitch: 72, startBeat: 4, duration: 1, velocity: 0.6 },
+          { id: 'in3', pitch: 65, startBeat: 5, duration: 1.5, velocity: 0.75 },
+          { id: 'in4', pitch: 62, startBeat: 7, duration: 2, velocity: 0.85 },
+          { id: 'in5', pitch: 69, startBeat: 9, duration: 0.5, velocity: 0.8 },
+          // Notes after loop (should be dimmed)
+          { id: 'post1', pitch: 60, startBeat: 10, duration: 2, velocity: 0.7 },
+          { id: 'post2', pitch: 64, startBeat: 12, duration: 1, velocity: 0.6 },
+          { id: 'post3', pitch: 67, startBeat: 14, duration: 2, velocity: 0.8 },
+        ],
+      }}
+      visibleBeats={16}
+    />
+  ),
+}
+
+/**
+ * Loop region with playhead animation.
+ * Test: Playhead loops within the loop region.
+ */
+export const LoopWithPlayhead: Story = {
+  render: () => {
+    const [clip, setClip] = useState<MidiClip>({
+      id: 'loop-playhead',
+      name: 'Loop Playhead Demo',
+      length: 16,
+      loopStart: 4,
+      loopEnd: 12,
+      notes: [
+        { id: 'n1', pitch: 60, startBeat: 4, duration: 2, velocity: 0.8 },
+        { id: 'n2', pitch: 64, startBeat: 6, duration: 2, velocity: 0.7 },
+        { id: 'n3', pitch: 67, startBeat: 8, duration: 2, velocity: 0.9 },
+        { id: 'n4', pitch: 72, startBeat: 10, duration: 2, velocity: 0.6 },
+      ],
+    })
+    const [playhead, setPlayhead] = useState(clip.loopStart ?? 0)
+    const [isPlaying, setIsPlaying] = useState(true)
+
+    const loopStart = clip.loopStart ?? 0
+    const loopEnd = clip.loopEnd ?? clip.length
+
+    useEffect(() => {
+      if (!isPlaying) return
+      const interval = setInterval(() => {
+        setPlayhead((prev) => {
+          const next = prev + 0.05
+          // Loop back to loopStart when we reach loopEnd
+          if (next >= loopEnd) return loopStart
+          return next
+        })
+      }, 50)
+      return () => clearInterval(interval)
+    }, [isPlaying, loopStart, loopEnd])
+
+    return (
+      <Box sx={{ width: '100%', maxWidth: 900 }}>
+        <Box sx={{ mb: 1, display: 'flex', gap: 2 }}>
+          <button onClick={() => setIsPlaying(!isPlaying)}>
+            {isPlaying ? 'Pause' : 'Play'}
+          </button>
+          <span>Beat: {playhead.toFixed(2)}</span>
+          <span>Loop: {loopStart.toFixed(1)} - {loopEnd.toFixed(1)}</span>
+        </Box>
+        <PianoRoll
+          clip={clip}
+          onClipChange={setClip}
+          playheadBeat={playhead}
+          height={400}
+          visibleBeats={16}
+        />
+      </Box>
+    )
+  },
+}
