@@ -31,6 +31,7 @@
   },
   "peerDependencies": {
     "@eddyc/chronicle-client": "*",
+    "@eddyc/chronicle-dsl": "*",
     "@emotion/react": "^11.0.0",
     "@emotion/styled": "^11.0.0",
     "@fontsource/jetbrains-mono": "*",
@@ -47,6 +48,7 @@
   },
   "devDependencies": {
     "@eddyc/chronicle-client": "workspace:*",
+    "@eddyc/chronicle-dsl": "workspace:*",
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
     "@fontsource/jetbrains-mono": "^5.2.5",

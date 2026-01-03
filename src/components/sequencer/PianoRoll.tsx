@@ -102,13 +102,26 @@ export function PianoRoll({
   const gridRef = useRef<HTMLDivElement>(null)
 
   // Viewport state for pan/zoom
-  const { viewport, panZoomTime, panZoomPitch, panTime, panPitch } =
+  const { viewport, panZoomTime, panZoomPitch, panTime, panPitch, fitToContent } =
     usePianoRollViewport({
       clipLength: clip.length,
       initialBeats: visibleBeats,
       initialLowNote: lowNote,
       initialHighNote: highNote,
     })
+
+  // Auto-fit viewport to content on initial mount
+  const hasAutoFit = useRef(false)
+  useEffect(() => {
+    if (!hasAutoFit.current && clip.notes.length > 0) {
+      hasAutoFit.current = true
+      fitToContent({
+        loopStart: clip.loopStart ?? 0,
+        loopEnd: clip.loopEnd ?? clip.length,
+        notes: clip.notes,
+      })
+    }
+  }, [clip, fitToContent])
 
   // Controlled or uncontrolled selection
   const [internalSelection, setInternalSelection] = useState<Set<string>>(new Set())

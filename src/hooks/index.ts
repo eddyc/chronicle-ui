@@ -9,4 +9,5 @@ export type {
   ViewportState,
   UsePianoRollViewportOptions,
   UsePianoRollViewportResult,
+  FitToContentOptions,
 } from './usePianoRollViewport'

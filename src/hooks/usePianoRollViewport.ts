@@ -42,6 +42,19 @@ export interface UsePianoRollViewportOptions {
   clipLength: number
 }
 
+export interface FitToContentOptions {
+  /** Start of the loop region in beats */
+  loopStart: number
+  /** End of the loop region in beats */
+  loopEnd: number
+  /** Notes to fit vertically */
+  notes: Array<{ pitch: number }>
+  /** Horizontal padding in beats (default: 0.5) */
+  horizontalPadding?: number
+  /** Vertical padding in semitones (default: 2) */
+  verticalPadding?: number
+}
+
 export interface UsePianoRollViewportResult {
   /** Current viewport state */
   viewport: ViewportState
@@ -71,6 +84,11 @@ export interface UsePianoRollViewportResult {
   panZoomPitch: (anchorPitch: number, anchorRatio: number, zoomFactor: number) => void
   /** Reset viewport to show all notes */
   resetViewport: () => void
+  /**
+   * Fit viewport to show the loop region horizontally and note range vertically.
+   * Call this on mount to auto-zoom to content.
+   */
+  fitToContent: (options: FitToContentOptions) => void
 }
 
 // ============ Helpers ============
@@ -297,6 +315,53 @@ export function usePianoRollViewport(
     })
   }, [])
 
+  // Fit viewport to content (loop region + note range)
+  const fitToContent = useCallback(
+    ({
+      loopStart,
+      loopEnd,
+      notes,
+      horizontalPadding = 0.5,
+      verticalPadding = 2,
+    }: FitToContentOptions) => {
+      // Horizontal: fit loop region with padding
+      const targetStartBeat = Math.max(0, loopStart - horizontalPadding)
+      const targetEndBeat = loopEnd + horizontalPadding
+
+      // Clamp horizontal range to limits
+      let beatsVisible = targetEndBeat - targetStartBeat
+      beatsVisible = clamp(beatsVisible, minBeatsVisible, maxBeatsVisible)
+
+      // Vertical: fit note range with padding
+      let targetLowNote = initialLowNote
+      let targetHighNote = initialHighNote
+
+      if (notes.length > 0) {
+        const pitches = notes.map((n) => n.pitch)
+        const minPitch = Math.min(...pitches)
+        const maxPitch = Math.max(...pitches)
+        targetLowNote = Math.max(0, minPitch - verticalPadding)
+        targetHighNote = Math.min(127, maxPitch + verticalPadding)
+
+        // Ensure minimum visible range
+        const range = targetHighNote - targetLowNote
+        if (range < minNotesVisible) {
+          const center = (targetHighNote + targetLowNote) / 2
+          targetLowNote = Math.max(0, Math.floor(center - minNotesVisible / 2))
+          targetHighNote = Math.min(127, Math.ceil(center + minNotesVisible / 2))
+        }
+      }
+
+      setViewport({
+        startBeat: targetStartBeat,
+        endBeat: targetStartBeat + beatsVisible,
+        lowNote: targetLowNote,
+        highNote: targetHighNote,
+      })
+    },
+    [initialLowNote, initialHighNote, minBeatsVisible, maxBeatsVisible, minNotesVisible]
+  )
+
   return {
     viewport,
     panTime,
@@ -306,5 +371,6 @@ export function usePianoRollViewport(
     panZoomTime,
     panZoomPitch,
     resetViewport,
+    fitToContent,
   }
 }
