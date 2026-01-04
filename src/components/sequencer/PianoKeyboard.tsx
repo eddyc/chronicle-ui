@@ -13,7 +13,7 @@ import { useRef, useMemo } from 'react'
 import { useChronicleTheme } from '../../hooks'
 import type { ViewportState } from '../../hooks'
 import type { PianoRollScales } from './hooks/usePianoRollScales'
-import { useD3PianoKeys } from './d3'
+import { useD3PianoKeys, type NoteLabel } from './d3'
 import { KEY_WIDTH } from './utils/pianoRollHelpers'
 
 // ============ Types ============
@@ -35,6 +35,8 @@ export interface PianoKeyboardProps {
   onNotePreview?: (pitch: number, velocity: number) => void
   /** Called when a note preview should end */
   onNotePreviewEnd?: (pitch: number) => void
+  /** Note map for labeled note display (e.g., drum pads) */
+  noteMap?: NoteLabel[]
 }
 
 // ============ Component ============
@@ -48,6 +50,7 @@ export function PianoKeyboard({
   onHoverPitch,
   onNotePreview,
   onNotePreviewEnd,
+  noteMap,
 }: PianoKeyboardProps) {
   const { semantic } = useChronicleTheme()
   const svgRef = useRef<SVGSVGElement>(null)
@@ -78,6 +81,7 @@ export function PianoKeyboard({
     onHoverPitch,
     onNotePreview,
     onNotePreviewEnd,
+    noteMap,
     theme: {
       border: {
         subtle: semantic.border.subtle,

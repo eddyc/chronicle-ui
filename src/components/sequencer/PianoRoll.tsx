@@ -44,6 +44,7 @@ import {
   DEFAULT_LOW_NOTE,
   DEFAULT_HIGH_NOTE,
 } from './utils/pianoRollHelpers'
+import type { NoteLabel } from './d3'
 
 // ============ Types ============
 
@@ -74,6 +75,8 @@ export interface PianoRollProps {
   onSelectionChange?: (ids: Set<string>) => void
   /** Height of the component */
   height?: number
+  /** Note map for labeled note display (e.g., drum pads) */
+  noteMap?: NoteLabel[]
 }
 
 // ============ Constants ============
@@ -96,6 +99,7 @@ export function PianoRoll({
   selectedNoteIds,
   onSelectionChange,
   height = 300,
+  noteMap,
 }: PianoRollProps) {
   const { semantic } = useChronicleTheme()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -333,6 +337,7 @@ export function PianoRoll({
           onHoverPitch={setHoveredPitch}
           onNotePreview={onNotePreview}
           onNotePreviewEnd={onNotePreviewEnd}
+          noteMap={noteMap}
         />
 
         {/* Note grid */}

@@ -33,6 +33,7 @@ export {
   useD3Overlays,
   useD3Zoom,
   type BrushRect,
+  type NoteLabel,
 } from './d3'
 
 // Utilities
